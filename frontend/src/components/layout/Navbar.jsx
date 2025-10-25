@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiChevronDown, FiUser, FiLogOut } from 'react-icons/fi';
+import { FiChevronDown, FiUser, FiLogOut, FiSettings } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import { getProjects } from '../../services/projectService';
 
@@ -42,9 +42,9 @@ const Navbar = () => {
               <FiChevronDown className={`transition-transform ${isProjectsOpen ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* Dropdown Menu */}
+            {/* Dropdown Menu - CENTERED */}
             {isProjectsOpen && (
-              <div className="absolute top-full mt-2 w-64 bg-gray-900 border border-gray-800 rounded-lg shadow-xl py-2">
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 w-64 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl py-2">
                 {projects.length === 0 ? (
                   <div className="px-4 py-2 text-gray-500 text-sm">
                     No projects yet
@@ -55,7 +55,7 @@ const Navbar = () => {
                       key={project.id}
                       to={`/project/${project.slug}`}
                       onClick={() => setIsProjectsOpen(false)}
-                      className="block px-4 py-2 text-gray-300 hover:bg-gray-800 hover:text-white transition"
+                      className="block px-4 py-2 text-gray-300 hover:bg-neutral-800 hover:text-white transition"
                     >
                       <div className="font-medium">{project.name}</div>
                       {project.description && (
@@ -84,22 +84,35 @@ const Navbar = () => {
                 </button>
 
                 {isUserMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-gray-900 border border-gray-800 rounded-lg shadow-xl py-2">
-                    <div className="px-4 py-2 border-b border-gray-800">
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl py-2">
+                    <div className="px-4 py-2 border-b border-neutral-800">
                       <p className="text-sm text-gray-500">Logged in as</p>
                       <p className="text-white font-medium">{user?.email}</p>
                       {user?.role === 'admin' && (
-                        <span className="inline-block mt-1 text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">
+                        <span className="inline-block mt-1 text-xs bg-purple-600/20 text-purple-400 px-2 py-1 rounded">
                           Admin
                         </span>
                       )}
                     </div>
+                    
+                    {/* Admin Panel Link */}
+                    {user?.role === 'admin' && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setIsUserMenuOpen(false)}
+                        className="w-full text-left px-4 py-2 text-purple-400 hover:bg-neutral-800 transition flex items-center gap-2"
+                      >
+                        <FiSettings />
+                        Admin Panel
+                      </Link>
+                    )}
+                    
                     <button
                       onClick={() => {
                         logout();
                         setIsUserMenuOpen(false);
                       }}
-                      className="w-full text-left px-4 py-2 text-red-400 hover:bg-gray-800 transition flex items-center gap-2"
+                      className="w-full text-left px-4 py-2 text-red-400 hover:bg-neutral-800 transition flex items-center gap-2"
                     >
                       <FiLogOut />
                       Logout

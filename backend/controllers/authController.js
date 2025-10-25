@@ -13,10 +13,13 @@ const generateToken = (id) => {
 // @access  Public
 const register = async (req, res) => {
   try {
+    console.log('📝 Registration attempt:', req.body.email); // LOG
+
     const { username, email, password } = req.body;
 
     // Validation
     if (!username || !email || !password) {
+      console.log('❌ Registration failed: Missing fields');
       return res.status(400).json({
         success: false,
         message: 'Please provide username, email and password'
@@ -29,6 +32,7 @@ const register = async (req, res) => {
     });
 
     if (userExists) {
+      console.log('❌ Registration failed: Email already exists -', email);
       return res.status(400).json({
         success: false,
         message: 'User already exists with this email'
@@ -41,6 +45,7 @@ const register = async (req, res) => {
     });
 
     if (usernameExists) {
+      console.log('❌ Registration failed: Username taken -', username);
       return res.status(400).json({
         success: false,
         message: 'Username is already taken'
@@ -58,6 +63,8 @@ const register = async (req, res) => {
     // Generate token
     const token = generateToken(user.id);
 
+    console.log('✅ Registration successful:', user.email, '- Role:', user.role);
+
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
@@ -70,6 +77,7 @@ const register = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('❌ Registration error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -83,10 +91,13 @@ const register = async (req, res) => {
 // @access  Public
 const login = async (req, res) => {
   try {
+    console.log('🔐 Login attempt:', req.body.email); // LOG
+
     const { email, password } = req.body;
 
     // Validation
     if (!email || !password) {
+      console.log('❌ Login failed: Missing credentials');
       return res.status(400).json({
         success: false,
         message: 'Please provide email and password'
@@ -99,6 +110,7 @@ const login = async (req, res) => {
     });
 
     if (!user) {
+      console.log('❌ Login failed: User not found -', email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -109,6 +121,7 @@ const login = async (req, res) => {
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
+      console.log('❌ Login failed: Wrong password -', email);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
@@ -117,6 +130,8 @@ const login = async (req, res) => {
 
     // Generate token
     const token = generateToken(user.id);
+
+    console.log('✅ Login successful:', user.email, '- Role:', user.role);
 
     res.status(200).json({
       success: true,
@@ -130,6 +145,7 @@ const login = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('❌ Login error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -143,15 +159,20 @@ const login = async (req, res) => {
 // @access  Private
 const getMe = async (req, res) => {
   try {
+    console.log('👤 Get user profile:', req.user.id); // LOG
+
     const user = await User.findByPk(req.user.id, {
       attributes: { exclude: ['password'] }
     });
+
+    console.log('✅ Profile fetched:', user.email);
 
     res.status(200).json({
       success: true,
       data: user
     });
   } catch (error) {
+    console.error('❌ Get profile error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',

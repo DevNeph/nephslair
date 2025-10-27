@@ -2,10 +2,13 @@ const express = require('express');
 const router = express.Router();
 const {
   getAllPosts,
+  getAllPostsAdmin,
   getPostsByProject,
   getPostBySlug,
+  getPostById,
   createPost,
   updatePost,
+  updatePostStatus,
   deletePost
 } = require('../controllers/postController');
 const auth = require('../middleware/auth');
@@ -22,6 +25,44 @@ const adminAuth = require('../middleware/adminAuth');
  *         description: List of published posts
  */
 router.get('/', getAllPosts);
+
+/**
+ * @swagger
+ * /posts/admin/all:
+ *   get:
+ *     summary: Get all posts including drafts (Admin only)
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all posts
+ */
+router.get('/admin/all', auth, adminAuth, getAllPostsAdmin);
+
+
+/**
+ * @swagger
+ * /posts/admin/{id}:
+ *   get:
+ *     summary: Get post by ID (Admin only)
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Post ID
+ *     responses:
+ *       200:
+ *         description: Post details
+ *       404:
+ *         description: Post not found
+ */
+router.get('/admin/:id', auth, adminAuth, getPostById);
 
 /**
  * @swagger
@@ -82,7 +123,6 @@ router.get('/:slug', getPostBySlug);
  *             required:
  *               - project_id
  *               - title
- *               - slug
  *               - content
  *             properties:
  *               project_id:
@@ -91,9 +131,6 @@ router.get('/:slug', getPostBySlug);
  *               title:
  *                 type: string
  *                 example: Version 2.0 Released!
- *               slug:
- *                 type: string
- *                 example: version-2-0-released
  *               content:
  *                 type: string
  *                 example: We are excited to announce version 2.0...
@@ -160,6 +197,42 @@ router.post('/', auth, adminAuth, createPost);
  *         description: Forbidden - Admin only
  */
 router.put('/:id', auth, adminAuth, updatePost);
+
+/**
+ * @swagger
+ * /posts/{id}:
+ *   patch:
+ *     summary: Update post status (Admin only)
+ *     tags: [Posts]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Post ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [draft, published]
+ *                 example: published
+ *     responses:
+ *       200:
+ *         description: Post status updated successfully
+ *       404:
+ *         description: Post not found
+ */
+router.patch('/:id', auth, adminAuth, updatePostStatus);
 
 /**
  * @swagger

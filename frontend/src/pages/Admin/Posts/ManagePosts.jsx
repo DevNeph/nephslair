@@ -29,24 +29,24 @@ const ManagePosts = () => {
     fetchProjects();
   }, []);
 
-    const fetchPosts = async () => {
+  const fetchPosts = async () => {
     try {
-        setLoading(true);
-        const response = await api.get('/posts');
-        console.log('🔍 Posts from API:', response.data.data);  // ← EKLE
-        setPosts(response.data.data);
+      setLoading(true);
+      const response = await api.get('/posts/admin/all');  // ← DEĞİŞTİ
+      console.log('🔍 Posts from API:', response.data.data);
+      setPosts(response.data.data);
     } catch (error) {
-        console.error('Error fetching posts:', error);
-        toast.error('Failed to load posts');
+      console.error('Error fetching posts:', error);
+      toast.error('Failed to load posts');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-    };
+  };
 
     const fetchProjects = async () => {
     try {
         const response = await api.get('/projects/admin/all'); 
-        console.log('🔍 Projects from API:', response.data.data);  // ← EKLE
+        console.log('🔍 Projects from API:', response.data.data);
         setProjects(response.data.data);
     } catch (error) {
         console.error('Error fetching projects:', error);

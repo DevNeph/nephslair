@@ -45,7 +45,7 @@ const PostForm = () => {
   const fetchPost = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/posts/${id}`);
+      const response = await api.get(`/posts/admin/${id}`);
       const post = response.data.data;
       
       setFormData({

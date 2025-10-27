@@ -4,9 +4,6 @@ const { Op } = require('sequelize');
 // @desc    Get all published posts (for homepage)
 // @route   GET /api/posts
 // @access  Public
-// @desc    Get all published posts (for homepage)
-// @route   GET /api/posts
-// @access  Public
 const getAllPosts = async (req, res) => {
   try {
     const posts = await Post.findAll({
@@ -154,6 +151,82 @@ const getPostBySlug = async (req, res) => {
   }
 };
 
+// @desc    Get post by ID (Admin)
+// @route   GET /api/posts/admin/:id
+// @access  Private/Admin
+const getPostById = async (req, res) => {
+  try {
+    const post = await Post.findByPk(req.params.id, {
+      include: [
+        {
+          model: Project,
+          as: 'project',
+          attributes: ['id', 'name', 'slug']
+        },
+        {
+          model: User,
+          as: 'author',
+          attributes: ['id', 'username']
+        }
+      ]
+    });
+
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: post
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get all posts (Admin - including drafts)
+// @route   GET /api/posts/admin/all
+// @access  Private/Admin
+const getAllPostsAdmin = async (req, res) => {
+  try {
+    const posts = await Post.findAll({
+      order: [['created_at', 'DESC']],
+      include: [
+        {
+          model: Project,
+          as: 'project',
+          attributes: ['id', 'name', 'slug']
+        },
+        {
+          model: User,
+          as: 'author',
+          attributes: ['id', 'username']
+        }
+      ],
+      attributes: ['id', 'title', 'slug', 'content', 'excerpt', 'project_id', 'status', 'upvotes', 'downvotes', 'published_at', 'created_at', 'updated_at']
+    });
+
+    res.status(200).json({
+      success: true,
+      count: posts.length,
+      data: posts
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Create new post
 // @route   POST /api/posts
 // @access  Private/Admin
@@ -276,6 +349,43 @@ const updatePost = async (req, res) => {
   }
 };
 
+// @desc    Update post status
+// @route   PATCH /api/posts/:id
+// @access  Private/Admin
+const updatePostStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    const post = await Post.findByPk(req.params.id);
+    
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+    
+    post.status = status;
+    if (status === 'published' && !post.published_at) {
+      post.published_at = new Date();
+    }
+    
+    await post.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Post status updated',
+      data: post
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Delete post
 // @route   DELETE /api/posts/:id
 // @access  Private/Admin
@@ -307,9 +417,12 @@ const deletePost = async (req, res) => {
 
 module.exports = {
   getAllPosts,
+  getAllPostsAdmin,
   getPostsByProject,
   getPostBySlug,
+  getPostById,
   createPost,
   updatePost,
+  updatePostStatus,
   deletePost
 };

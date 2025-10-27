@@ -17,7 +17,7 @@ const PostCard = ({ post }) => {
       </Link>
 
       {/* Post Title */}
-      <Link to={`/project/${post.Project?.slug}/post/${post.id}`}>
+      <Link to={`/project/${post.project?.slug}/post/${post.slug}`}>
         <h2 className="text-2xl font-bold text-white mb-3 hover:text-gray-300 transition">
           {post.title}
         </h2>
@@ -55,7 +55,7 @@ const PostCard = ({ post }) => {
 
         {/* Read More Link */}
         <Link
-          to={`/project/${post.Project?.slug}/post/${post.id}`}
+          to={`/project/${post.project?.slug}/post/${post.slug}`}
           className="text-blue-400 hover:text-blue-300 transition font-medium"
         >
           Read More →

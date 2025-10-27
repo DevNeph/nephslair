@@ -5,6 +5,8 @@ import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import HomePage from './pages/Home/HomePage';
+import ProjectPage from './pages/Project/ProjectPage';
+import PostPage from './pages/Post/PostPage';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import AdminRoute from './components/common/AdminRoute';
@@ -21,10 +23,22 @@ function App() {
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <div className="min-h-screen bg-black flex flex-col">
           <Navbar />
+          <Toaster 
+            position="top-right"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: '#262626',
+                color: '#fff',
+              },
+            }}
+          />
           <main className="flex-grow">
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<HomePage />} />
+              <Route path="/project/:slug" element={<ProjectPage />} />
+              <Route path="/project/:slug/post/:postSlug" element={<PostPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               

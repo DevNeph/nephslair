@@ -17,10 +17,18 @@ export const getPostsByProject = async (projectSlug) => {
 };
 
 /**
- * Get single post by ID
+ * Get single post by slug
+ */
+export const getPostBySlug = async (slug) => {
+  const response = await api.get(`/posts/${slug}`);
+  return response.data.data;
+};
+
+/**
+ * Get single post by ID (Admin)
  */
 export const getPostById = async (id) => {
-  const response = await api.get(`/posts/${id}`);
+  const response = await api.get(`/posts/admin/${id}`);
   return response.data.data;
 };
 

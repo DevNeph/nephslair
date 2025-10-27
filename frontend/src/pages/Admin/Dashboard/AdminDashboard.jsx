@@ -17,7 +17,6 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      // Bu endpoint'leri backend'de oluşturacağız
       const [usersRes, projectsRes, postsRes] = await Promise.all([
         api.get('/users'),
         api.get('/projects'),
@@ -28,7 +27,7 @@ const AdminDashboard = () => {
         users: usersRes.data.data?.length || 0,
         projects: projectsRes.data.data?.length || 0,
         posts: postsRes.data.data?.length || 0,
-        comments: 0 // Şimdilik 0
+        comments: 0
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -36,10 +35,38 @@ const AdminDashboard = () => {
   };
 
   const statCards = [
-    { title: 'Total Users', value: stats.users, icon: FiUsers, color: 'purple', link: '/admin/users' },
-    { title: 'Total Projects', value: stats.projects, icon: FiFolderPlus, color: 'cyan', link: '/admin/projects' },
-    { title: 'Total Posts', value: stats.posts, icon: FiFileText, color: 'green', link: '/admin/posts' },
-    { title: 'Total Comments', value: stats.comments, icon: FiMessageSquare, color: 'yellow', link: '#' }
+    { 
+      title: 'Total Users', 
+      value: stats.users, 
+      icon: FiUsers, 
+      iconColor: 'text-purple-500',
+      textColor: 'text-purple-500',
+      link: '/admin/users' 
+    },
+    { 
+      title: 'Total Projects', 
+      value: stats.projects, 
+      icon: FiFolderPlus, 
+      iconColor: 'text-cyan-500',
+      textColor: 'text-cyan-500',
+      link: '/admin/projects' 
+    },
+    { 
+      title: 'Total Posts', 
+      value: stats.posts, 
+      icon: FiFileText, 
+      iconColor: 'text-green-500',
+      textColor: 'text-green-500',
+      link: '/admin/posts' 
+    },
+    { 
+      title: 'Total Comments', 
+      value: stats.comments, 
+      icon: FiMessageSquare, 
+      iconColor: 'text-yellow-500',
+      textColor: 'text-yellow-500',
+      link: '#' 
+    }
   ];
 
   return (
@@ -59,8 +86,8 @@ const AdminDashboard = () => {
             className="bg-neutral-900 border border-neutral-800 rounded-lg p-6 hover:border-neutral-700 transition"
           >
             <div className="flex items-center justify-between mb-4">
-              <stat.icon className={`text-${stat.color}-500 text-3xl`} />
-              <span className={`text-${stat.color}-500 text-sm font-medium`}>
+              <stat.icon className={`${stat.iconColor} text-3xl`} />
+              <span className={`${stat.textColor} text-sm font-medium`}>
                 View All
               </span>
             </div>
@@ -75,14 +102,14 @@ const AdminDashboard = () => {
         <h2 className="text-2xl font-bold text-white mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
-            to="/admin/projects/new"
+            to="/admin/projects/create"
             className="bg-neutral-800 hover:bg-neutral-700 rounded-lg p-4 text-center transition"
           >
             <FiFolderPlus className="text-purple-500 text-2xl mx-auto mb-2" />
             <span className="text-white font-medium">Create Project</span>
           </Link>
           <Link
-            to="/admin/posts/new"
+            to="/admin/posts/create"
             className="bg-neutral-800 hover:bg-neutral-700 rounded-lg p-4 text-center transition"
           >
             <FiFileText className="text-purple-500 text-2xl mx-auto mb-2" />

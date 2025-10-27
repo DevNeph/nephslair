@@ -4,12 +4,58 @@ const {
   getAllProjects,
   getAllProjectsAdmin,
   getProjectBySlug,
+  getProjectById,
   createProject,
   updateProject,
   deleteProject
 } = require('../controllers/projectController');
 const auth = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
+
+/**
+ * @swagger
+ * /projects/admin/all:
+ *   get:
+ *     summary: Get all projects including drafts (Admin only)
+ *     tags: [Projects]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all projects
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin only
+ */
+router.get('/admin/all', auth, adminAuth, getAllProjectsAdmin);
+
+/**
+ * @swagger
+ * /projects/admin/{id}:
+ *   get:
+ *     summary: Get single project by ID (Admin only)
+ *     tags: [Projects]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Project ID
+ *     responses:
+ *       200:
+ *         description: Project details
+ *       404:
+ *         description: Project not found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin only
+ */
+router.get('/admin/:id', auth, adminAuth, getProjectById);
 
 /**
  * @swagger
@@ -33,26 +79,23 @@ const adminAuth = require('../middleware/adminAuth');
  *                   type: array
  *                   items:
  *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: string
+ *                       slug:
+ *                         type: string
+ *                       description:
+ *                         type: string
+ *                       status:
+ *                         type: string
+ *                       created_at:
+ *                         type: string
+ *                       updated_at:
+ *                         type: string
  */
 router.get('/', getAllProjects);
-
-/**
- * @swagger
- * /projects/all:
- *   get:
- *     summary: Get all projects including drafts (Admin only)
- *     tags: [Projects]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: List of all projects
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Forbidden - Admin only
- */
-router.get('/all', auth, adminAuth, getAllProjectsAdmin);
 
 /**
  * @swagger
@@ -79,7 +122,7 @@ router.get('/:slug', getProjectBySlug);
  * @swagger
  * /projects:
  *   post:
- *     summary: Create new project
+ *     summary: Create new project (Admin only)
  *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
@@ -106,9 +149,6 @@ router.get('/:slug', getProjectBySlug);
  *                 type: string
  *                 enum: [draft, published]
  *                 example: published
- *               latest_version:
- *                 type: string
- *                 example: v1.0.0
  *     responses:
  *       201:
  *         description: Project created successfully
@@ -125,7 +165,7 @@ router.post('/', auth, adminAuth, createProject);
  * @swagger
  * /projects/{id}:
  *   put:
- *     summary: Update project
+ *     summary: Update project (Admin only)
  *     tags: [Projects]
  *     security:
  *       - bearerAuth: []
@@ -145,15 +185,17 @@ router.post('/', auth, adminAuth, createProject);
  *             properties:
  *               name:
  *                 type: string
+ *                 example: Updated Project Name
  *               slug:
  *                 type: string
+ *                 example: updated-project-slug
  *               description:
  *                 type: string
+ *                 example: Updated description
  *               status:
  *                 type: string
  *                 enum: [draft, published]
- *               latest_version:
- *                 type: string
+ *                 example: published
  *     responses:
  *       200:
  *         description: Project updated successfully
@@ -170,7 +212,7 @@ router.put('/:id', auth, adminAuth, updateProject);
  * @swagger
  * /projects/{id}:
  *   delete:
- *     summary: Delete project
+ *     summary: Delete project (Admin only)
  *     tags: [Projects]
  *     security:
  *       - bearerAuth: []

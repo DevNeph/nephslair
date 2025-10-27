@@ -1,14 +1,13 @@
-const { Project, Post, Download } = require('../models');
+const { Project, Post } = require('../models');
 
-// @desc    Get all published projects
+// @desc    Get all projects (Public - only published)
 // @route   GET /api/projects
 // @access  Public
 const getAllProjects = async (req, res) => {
   try {
     const projects = await Project.findAll({
       where: { status: 'published' },
-      order: [['created_at', 'DESC']],
-      attributes: ['id', 'name', 'slug', 'description', 'latest_version', 'created_at', 'updated_at']
+      order: [['created_at', 'DESC']] 
     });
 
     res.status(200).json({
@@ -17,6 +16,7 @@ const getAllProjects = async (req, res) => {
       data: projects
     });
   } catch (error) {
+    console.error('Error fetching projects:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -25,21 +25,38 @@ const getAllProjects = async (req, res) => {
   }
 };
 
-// @desc    Get all projects (including drafts) - Admin only
-// @route   GET /api/projects/all
+// @desc    Get all projects (Admin - including drafts)
+// @route   GET /api/projects/admin/all
 // @access  Private/Admin
 const getAllProjectsAdmin = async (req, res) => {
   try {
+    console.log('📊 Admin fetching all projects...');
+    
     const projects = await Project.findAll({
-      order: [['created_at', 'DESC']]
+      order: [['created_at', 'DESC']],  // ← DEĞİŞTİRİLDİ!
+      include: [{
+        model: Post,
+        as: 'posts',
+        attributes: ['id']
+      }]
     });
+
+    const projectsWithCount = projects.map(project => {
+      const projectData = project.toJSON();
+      projectData.postCount = projectData.posts?.length || 0;
+      delete projectData.posts;
+      return projectData;
+    });
+
+    console.log(`✅ Found ${projects.length} projects`);
 
     res.status(200).json({
       success: true,
-      count: projects.length,
-      data: projects
+      count: projectsWithCount.length,
+      data: projectsWithCount
     });
   } catch (error) {
+    console.error('❌ Error fetching projects:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -48,25 +65,13 @@ const getAllProjectsAdmin = async (req, res) => {
   }
 };
 
-// @desc    Get single project by slug
+// @desc    Get project by slug
 // @route   GET /api/projects/:slug
 // @access  Public
 const getProjectBySlug = async (req, res) => {
   try {
     const project = await Project.findOne({
-      where: { 
-        slug: req.params.slug,
-        status: 'published'
-      },
-      include: [
-        {
-          model: Post,
-          as: 'posts',
-          where: { status: 'published' },
-          required: false,
-          order: [['published_at', 'DESC']]
-        }
-      ]
+      where: { slug: req.params.slug }
     });
 
     if (!project) {
@@ -81,6 +86,7 @@ const getProjectBySlug = async (req, res) => {
       data: project
     });
   } catch (error) {
+    console.error('Error fetching project:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -94,9 +100,10 @@ const getProjectBySlug = async (req, res) => {
 // @access  Private/Admin
 const createProject = async (req, res) => {
   try {
-    const { name, slug, description, status, latest_version } = req.body;
+    console.log('📝 Creating new project:', req.body);
+    
+    const { name, slug, description, status } = req.body;
 
-    // Validation
     if (!name || !slug) {
       return res.status(400).json({
         success: false,
@@ -104,22 +111,22 @@ const createProject = async (req, res) => {
       });
     }
 
-    // Check if slug already exists
-    const slugExists = await Project.findOne({ where: { slug } });
-    if (slugExists) {
+    const existingProject = await Project.findOne({ where: { slug } });
+    if (existingProject) {
       return res.status(400).json({
         success: false,
-        message: 'Slug already exists'
+        message: 'A project with this slug already exists'
       });
     }
 
     const project = await Project.create({
       name,
       slug,
-      description,
-      status: status || 'draft',
-      latest_version
+      description: description || null,
+      status: status || 'draft'
     });
+
+    console.log('✅ Project created:', project.id);
 
     res.status(201).json({
       success: true,
@@ -127,6 +134,7 @@ const createProject = async (req, res) => {
       data: project
     });
   } catch (error) {
+    console.error('❌ Error creating project:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -140,8 +148,8 @@ const createProject = async (req, res) => {
 // @access  Private/Admin
 const updateProject = async (req, res) => {
   try {
-    const { name, slug, description, status, latest_version } = req.body;
-
+    console.log('📝 Updating project:', req.params.id, req.body);
+    
     const project = await Project.findByPk(req.params.id);
 
     if (!project) {
@@ -151,28 +159,33 @@ const updateProject = async (req, res) => {
       });
     }
 
-    // Check if new slug already exists (excluding current project)
-    if (slug && slug !== project.slug) {
-      const slugExists = await Project.findOne({ 
-        where: { slug },
-        attributes: ['id']
+    const { name, slug, description, status } = req.body;
+    
+    if (name) project.name = name;
+    if (slug) {
+      const { Op } = require('sequelize');
+      const existingProject = await Project.findOne({ 
+        where: { 
+          slug,
+          id: { [Op.ne]: req.params.id }
+        } 
       });
-      if (slugExists && slugExists.id !== project.id) {
+      
+      if (existingProject) {
         return res.status(400).json({
           success: false,
-          message: 'Slug already exists'
+          message: 'A project with this slug already exists'
         });
       }
+      
+      project.slug = slug;
     }
-
-    // Update fields
-    if (name) project.name = name;
-    if (slug) project.slug = slug;
     if (description !== undefined) project.description = description;
     if (status) project.status = status;
-    if (latest_version !== undefined) project.latest_version = latest_version;
 
     await project.save();
+
+    console.log('✅ Project updated:', project.id);
 
     res.status(200).json({
       success: true,
@@ -180,6 +193,7 @@ const updateProject = async (req, res) => {
       data: project
     });
   } catch (error) {
+    console.error('❌ Error updating project:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -193,6 +207,8 @@ const updateProject = async (req, res) => {
 // @access  Private/Admin
 const deleteProject = async (req, res) => {
   try {
+    console.log('🗑️ Deleting project:', req.params.id);
+    
     const project = await Project.findByPk(req.params.id);
 
     if (!project) {
@@ -204,11 +220,46 @@ const deleteProject = async (req, res) => {
 
     await project.destroy();
 
+    console.log('✅ Project deleted:', req.params.id);
+
     res.status(200).json({
       success: true,
       message: 'Project deleted successfully'
     });
   } catch (error) {
+    console.error('❌ Error deleting project:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get project by ID (Admin)
+// @route   GET /api/projects/admin/:id
+// @access  Private/Admin
+const getProjectById = async (req, res) => {
+  try {
+    console.log('📊 Fetching project by ID:', req.params.id);
+    
+    const project = await Project.findByPk(req.params.id);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    console.log('✅ Project found:', project.name);
+
+    res.status(200).json({
+      success: true,
+      data: project
+    });
+  } catch (error) {
+    console.error('❌ Error fetching project:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -221,6 +272,7 @@ module.exports = {
   getAllProjects,
   getAllProjectsAdmin,
   getProjectBySlug,
+  getProjectById,
   createProject,
   updateProject,
   deleteProject

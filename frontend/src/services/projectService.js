@@ -1,10 +1,26 @@
 import api from './api';
 
 /**
- * Get all published projects
+ * Get all published projects (Public)
  */
 export const getProjects = async () => {
   const response = await api.get('/projects');
+  return response.data.data;
+};
+
+/**
+ * Get all projects including drafts (Admin only)
+ */
+export const getAllProjectsAdmin = async () => {
+  const response = await api.get('/projects/admin/all');
+  return response.data.data;
+};
+
+/**
+ * Get project by ID (Admin only)
+ */
+export const getProjectById = async (id) => {
+  const response = await api.get(`/projects/admin/${id}`);
   return response.data.data;
 };
 

@@ -8,6 +8,9 @@ import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import AdminRoute from './components/common/AdminRoute';
 import AdminDashboard from './pages/Admin/Dashboard/AdminDashboard';
+import ManageProjects from './pages/Admin/Projects/ManageProjects';
+import CreateProject from './pages/Admin/Projects/CreateProject';
+import EditProject from './pages/Admin/Projects/EditProject';
 
 function App() {
   return (
@@ -28,6 +31,30 @@ function App() {
                 element={
                   <AdminRoute>
                     <AdminDashboard />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/projects"
+                element={
+                  <AdminRoute>
+                    <ManageProjects />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/projects/create"
+                element={
+                  <AdminRoute>
+                    <CreateProject />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/projects/edit/:id"
+                element={
+                  <AdminRoute>
+                    <EditProject />
                   </AdminRoute>
                 }
               />

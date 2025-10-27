@@ -1,5 +1,5 @@
 // API Base URL
-export const API_BASE_URL = 'http://localhost:3001/api';
+export const API_BASE_URL = 'http://localhost:5000/api';
 
 // Local Storage Keys
 export const TOKEN_KEY = 'nephslair_token';
@@ -11,7 +11,7 @@ export const ROUTES = {
   LOGIN: '/login',
   REGISTER: '/register',
   PROJECT: '/project/:slug',
-  POST: '/project/:slug/post/:id',
+  POST: '/project/:slug/post/:postSlug',
   DOWNLOADS: '/project/:slug/downloads',
 };
 

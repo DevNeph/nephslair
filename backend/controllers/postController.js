@@ -1,5 +1,4 @@
-const { Post, Project, User, Comment, Vote, Poll, PollOption } = require('../models');
-const { Op } = require('sequelize');
+const { Post, Project, User, Comment, Poll, PollOption } = require('../models');
 
 // @desc    Get all published posts (for homepage)
 // @route   GET /api/posts
@@ -55,12 +54,31 @@ const getPostsByProject = async (req, res) => {
     }
 
     const posts = await Post.findAll({
-      where: { 
+      where: {
         project_id: project.id,
         status: 'published'
       },
       order: [['published_at', 'DESC']],
+      attributes: [
+        'id',
+        'title',
+        'slug',
+        'content',
+        'excerpt',
+        'project_id',
+        'status',
+        'upvotes',
+        'downvotes',
+        'published_at',
+        'created_at',
+        'updated_at'
+      ],
       include: [
+        {
+          model: Project,
+          as: 'project',
+          attributes: ['id', 'name', 'slug']
+        },
         {
           model: User,
           as: 'author',
@@ -89,7 +107,7 @@ const getPostsByProject = async (req, res) => {
 const getPostBySlug = async (req, res) => {
   try {
     const post = await Post.findOne({
-      where: { 
+      where: {
         slug: req.params.slug,
         status: 'published'
       },
@@ -113,8 +131,7 @@ const getPostBySlug = async (req, res) => {
               as: 'user',
               attributes: ['id', 'username']
             }
-          ],
-          order: [['created_at', 'DESC']]
+          ]
         },
         {
           model: Poll,
@@ -128,7 +145,8 @@ const getPostBySlug = async (req, res) => {
             }
           ]
         }
-      ]
+      ],
+      order: [[{ model: Comment, as: 'comments' }, 'created_at', 'DESC']]
     });
 
     if (!post) {

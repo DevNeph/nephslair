@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
@@ -11,6 +12,8 @@ import AdminDashboard from './pages/Admin/Dashboard/AdminDashboard';
 import ManageProjects from './pages/Admin/Projects/ManageProjects';
 import CreateProject from './pages/Admin/Projects/CreateProject';
 import EditProject from './pages/Admin/Projects/EditProject';
+import ManagePosts from './pages/Admin/Posts/ManagePosts';
+import PostForm from './pages/Admin/Posts/PostForm';
 
 function App() {
   return (
@@ -55,6 +58,32 @@ function App() {
                 element={
                   <AdminRoute>
                     <EditProject />
+                  </AdminRoute>
+                }
+              />
+              
+              {/* Post Management */}
+              <Route
+                path="/admin/posts"
+                element={
+                  <AdminRoute>
+                    <ManagePosts />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/posts/create"
+                element={
+                  <AdminRoute>
+                    <PostForm />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/posts/edit/:id"
+                element={
+                  <AdminRoute>
+                    <PostForm />
                   </AdminRoute>
                 }
               />

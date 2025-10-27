@@ -21,7 +21,8 @@ export const formatRelativeTime = (date) => {
  * Truncate text to specified length
  */
 export const truncateText = (text, maxLength = 150) => {
-  if (!text || text.length <= maxLength) return text;
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
   return text.substring(0, maxLength).trim() + '...';
 };
 

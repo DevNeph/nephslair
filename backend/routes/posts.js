@@ -9,7 +9,8 @@ const {
   createPost,
   updatePost,
   updatePostStatus,
-  deletePost
+  deletePost,
+  votePost
 } = require('../controllers/postController');
 const auth = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
@@ -260,5 +261,9 @@ router.patch('/:id', auth, adminAuth, updatePostStatus);
  *         description: Forbidden - Admin only
  */
 router.delete('/:id', auth, adminAuth, deletePost);
+
+
+// Vote on post
+router.post('/:id/vote', auth, votePost);
 
 module.exports = router;

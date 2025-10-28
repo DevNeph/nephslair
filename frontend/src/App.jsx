@@ -16,6 +16,8 @@ import CreateProject from './pages/Admin/Projects/CreateProject';
 import EditProject from './pages/Admin/Projects/EditProject';
 import ManagePosts from './pages/Admin/Posts/ManagePosts';
 import PostForm from './pages/Admin/Posts/PostForm';
+import ManageUsers from './pages/Admin/Users/ManageUsers';
+import ManageComments from './pages/Admin/Comments/ManageComments';
 
 function App() {
   return (
@@ -51,6 +53,18 @@ function App() {
                   </AdminRoute>
                 }
               />
+              
+              {/* User Management */}
+              <Route
+                path="/admin/users"
+                element={
+                  <AdminRoute>
+                    <ManageUsers />
+                  </AdminRoute>
+                }
+              />
+              
+              {/* Project Management */}
               <Route
                 path="/admin/projects"
                 element={
@@ -98,6 +112,16 @@ function App() {
                 element={
                   <AdminRoute>
                     <PostForm />
+                  </AdminRoute>
+                }
+              />
+
+              {/* Comment Management */}
+              <Route
+                path="/admin/comments"
+                element={
+                  <AdminRoute>
+                    <ManageComments />
                   </AdminRoute>
                 }
               />

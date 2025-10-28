@@ -25,12 +25,34 @@ const Comment = sequelize.define('Comment', {
     },
     onDelete: 'CASCADE'
   },
+  parent_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'comments',
+      key: 'id'
+    },
+    onDelete: 'CASCADE'
+  },
   content: {
     type: DataTypes.TEXT,
     allowNull: false,
     validate: {
-      len: [1, 5000] // Min 1 Maks 50000
+      len: [1, 5000]
     }
+  },
+  is_deleted: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false
+  },
+  upvotes: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  downvotes: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
   },
   created_at: {
     type: DataTypes.DATE,

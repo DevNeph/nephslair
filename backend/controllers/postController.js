@@ -1,4 +1,4 @@
-const { Post, Project, User, Comment, Poll, PollOption } = require('../models');
+const { Post, Project, Comment, User, Poll, PollOption, Vote } = require('../models');
 
 // @desc    Get all published posts (for homepage)
 // @route   GET /api/posts
@@ -131,7 +131,8 @@ const getPostBySlug = async (req, res) => {
               as: 'user',
               attributes: ['id', 'username']
             }
-          ]
+          ],
+          order: [['created_at', 'DESC']]
         },
         {
           model: Poll,
@@ -145,8 +146,7 @@ const getPostBySlug = async (req, res) => {
             }
           ]
         }
-      ],
-      order: [[{ model: Comment, as: 'comments' }, 'created_at', 'DESC']]
+      ]
     });
 
     if (!post) {
@@ -433,6 +433,100 @@ const deletePost = async (req, res) => {
   }
 };
 
+// @desc    Vote on post
+// @route   POST /api/posts/:id/vote
+// @access  Private
+const votePost = async (req, res) => {
+  try {
+    const { vote_type } = req.body;
+    const postId = req.params.id;
+    const userId = req.user.id;
+
+    if (!vote_type || !['upvote', 'downvote'].includes(vote_type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide valid vote_type (upvote or downvote)'
+      });
+    }
+
+    const post = await Post.findByPk(postId);
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    // Check if user already voted
+    let vote = await Vote.findOne({
+      where: {
+        user_id: userId,
+        post_id: postId
+      }
+    });
+
+    if (vote) {
+      // User already voted
+      if (vote.vote_type === vote_type) {
+        // Same vote - remove it (toggle)
+        await vote.destroy();
+        
+        // Update post vote counts
+        if (vote_type === 'upvote') {
+          post.upvotes = Math.max(0, post.upvotes - 1);
+        } else {
+          post.downvotes = Math.max(0, post.downvotes - 1);
+        }
+      } else {
+        // Different vote - change it
+        const oldVote = vote.vote_type;
+        vote.vote_type = vote_type;
+        await vote.save();
+        
+        // Update post vote counts
+        if (vote_type === 'upvote') {
+          post.upvotes += 1;
+          post.downvotes = Math.max(0, post.downvotes - 1);
+        } else {
+          post.downvotes += 1;
+          post.upvotes = Math.max(0, post.upvotes - 1);
+        }
+      }
+    } else {
+      // New vote
+      await Vote.create({
+        user_id: userId,
+        post_id: postId,
+        vote_type: vote_type
+      });
+      
+      // Update post vote counts
+      if (vote_type === 'upvote') {
+        post.upvotes += 1;
+      } else {
+        post.downvotes += 1;
+      }
+    }
+
+    await post.save();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        upvotes: post.upvotes,
+        downvotes: post.downvotes
+      }
+    });
+  } catch (error) {
+    console.error('Error voting on post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllPosts,
   getAllPostsAdmin,
@@ -442,5 +536,6 @@ module.exports = {
   createPost,
   updatePost,
   updatePostStatus,
-  deletePost
+  deletePost,
+  votePost
 };

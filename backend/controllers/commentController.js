@@ -1,4 +1,46 @@
-const { Comment, Post, User } = require('../models');
+const { Comment, Post, User, Project, CommentHistory } = require('../models');
+
+// @desc    Get all comments (Admin only)
+// @route   GET /api/comments
+// @access  Private/Admin
+const getAllComments = async (req, res) => {
+  try {
+    const comments = await Comment.findAll({
+      order: [['created_at', 'DESC']],
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'username']
+        },
+        {
+          model: Post,
+          as: 'post',
+          attributes: ['id', 'title', 'slug'],
+          include: [
+            {
+              model: Project,
+              as: 'project',
+              attributes: ['id', 'name', 'slug']
+            }
+          ]
+        }
+      ]
+    });
+
+    res.status(200).json({
+      success: true,
+      count: comments.length,
+      data: comments
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
 
 // @desc    Get comments for a post
 // @route   GET /api/comments/post/:postId
@@ -36,7 +78,7 @@ const getCommentsByPost = async (req, res) => {
 // @access  Private
 const createComment = async (req, res) => {
   try {
-    const { post_id, content } = req.body;
+    const { post_id, parent_id, content } = req.body;
 
     // Validation
     if (!post_id || !content) {
@@ -58,6 +100,7 @@ const createComment = async (req, res) => {
     const comment = await Comment.create({
       post_id,
       user_id: req.user.id,
+      parent_id: parent_id || null,
       content
     });
 
@@ -117,6 +160,14 @@ const updateComment = async (req, res) => {
       });
     }
 
+    // Save old content to history
+    await CommentHistory.create({
+      comment_id: comment.id,
+      content: comment.content,
+      edited_at: new Date()
+    });
+
+    // Update comment
     comment.content = content;
     await comment.save();
 
@@ -133,6 +184,42 @@ const updateComment = async (req, res) => {
     });
   }
 };
+
+// @desc    Get comment edit history
+// @route   GET /api/comments/:id/history
+// @access  Public
+const getCommentHistory = async (req, res) => {
+  try {
+    const comment = await Comment.findByPk(req.params.id);
+
+    if (!comment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Comment not found'
+      });
+    }
+
+    const history = await CommentHistory.findAll({
+      where: { comment_id: req.params.id },
+      order: [['edited_at', 'DESC']]
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        current: comment.content,
+        history: history
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 
 // @desc    Delete comment
 // @route   DELETE /api/comments/:id
@@ -156,7 +243,10 @@ const deleteComment = async (req, res) => {
       });
     }
 
-    await comment.destroy();
+    // Soft delete - sadece is_deleted flag'ini set et
+    comment.is_deleted = true;
+    comment.content = '[deleted]';
+    await comment.save();
 
     res.status(200).json({
       success: true,
@@ -172,8 +262,10 @@ const deleteComment = async (req, res) => {
 };
 
 module.exports = {
+  getAllComments,
   getCommentsByPost,
   createComment,
   updateComment,
-  deleteComment
+  deleteComment,
+  getCommentHistory 
 };

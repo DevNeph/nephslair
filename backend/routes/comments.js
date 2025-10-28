@@ -1,12 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const {
+  getAllComments,
   getCommentsByPost,
   createComment,
   updateComment,
-  deleteComment
+  deleteComment,
+  getCommentHistory 
 } = require('../controllers/commentController');
 const auth = require('../middleware/auth');
+const adminAuth = require('../middleware/adminAuth')
+
+// Get all comments (Admin only)
+router.get('/', auth, adminAuth, getAllComments);
 
 /**
  * @swagger
@@ -122,5 +128,39 @@ router.put('/:id', auth, updateComment);
  *         description: Comment not found
  */
 router.delete('/:id', auth, deleteComment);
+
+/**
+ * @swagger
+ * /comments/{commentId}/vote:
+ *   post:
+ *     summary: Vote on a comment
+ *     tags: [Comments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: commentId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - vote_type
+ *             properties:
+ *               vote_type:
+ *                 type: string
+ *                 enum: [upvote, downvote]
+ *     responses:
+ *       200:
+ *         description: Vote recorded/updated/removed
+ */
+const { voteComment } = require('../controllers/commentVoteController');
+router.post('/:commentId/vote', auth, voteComment);
+router.get('/:id/history', getCommentHistory);
 
 module.exports = router;

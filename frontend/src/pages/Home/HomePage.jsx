@@ -30,15 +30,13 @@ const HomePage = () => {
   if (error) return <ErrorMessage message={error} />;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold text-white mb-8">Latest Posts</h1>
-
+    <div className="max-w-5xl mx-auto px-4 py-12">
       {posts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500 text-lg">No posts yet</p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {posts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}

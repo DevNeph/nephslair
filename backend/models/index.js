@@ -8,6 +8,8 @@ const Poll = require('./Poll');
 const PollOption = require('./PollOption');
 const PollVote = require('./PollVote');
 const Download = require('./Download');
+const CommentVote = require('./commentvote')(sequelize, require('sequelize').DataTypes);
+const CommentHistory = require('./CommentHistory');
 
 // Define relationships
 
@@ -26,6 +28,23 @@ Comment.belongsTo(Post, { foreignKey: 'post_id', as: 'post' });
 // User - Comment relationship
 User.hasMany(Comment, { foreignKey: 'user_id', as: 'comments' });
 Comment.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+// Comment - Comment relationship (nested/replies)
+Comment.hasMany(Comment, { foreignKey: 'parent_id', as: 'replies' });
+Comment.belongsTo(Comment, { foreignKey: 'parent_id', as: 'parent' });
+
+// Comment - CommentVote relationship
+Comment.hasMany(CommentVote, { foreignKey: 'comment_id', as: 'commentVotes' });
+CommentVote.belongsTo(Comment, { foreignKey: 'comment_id', as: 'comment' });
+
+// User - CommentVote relationship
+User.hasMany(CommentVote, { foreignKey: 'user_id', as: 'commentVotes' });
+CommentVote.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+// Comment History
+Comment.hasMany(CommentHistory, { foreignKey: 'comment_id', as: 'history' });
+CommentHistory.belongsTo(Comment, { foreignKey: 'comment_id', as: 'comment' });
+
 
 // Post - Vote relationship
 Post.hasMany(Vote, { foreignKey: 'post_id', as: 'votes' });
@@ -55,6 +74,8 @@ PollVote.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 Project.hasMany(Download, { foreignKey: 'project_id', as: 'downloads' });
 Download.belongsTo(Project, { foreignKey: 'project_id', as: 'project' });
 
+
+
 // Database sync function
 const syncDatabase = async () => {
   try {
@@ -80,5 +101,7 @@ module.exports = {
   PollOption,
   PollVote,
   Download,
+  CommentVote,
+  CommentHistory,
   syncDatabase
 };

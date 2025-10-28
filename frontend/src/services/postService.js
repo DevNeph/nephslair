@@ -60,6 +60,6 @@ export const deletePost = async (id) => {
  * Vote on a post
  */
 export const votePost = async (postId, voteType) => {
-  const response = await api.post(`/votes/${postId}`, { voteType });
+  const response = await api.post(`/posts/${postId}/vote`, { vote_type: voteType });
   return response.data.data;
 };

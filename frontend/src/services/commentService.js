@@ -1,6 +1,14 @@
 import api from './api';
 
 /**
+ * Get all comments (Admin only)
+ */
+export const getAllComments = async () => {
+  const response = await api.get('/comments');
+  return response.data.data;
+};
+
+/**
  * Get comments by post ID
  */
 export const getCommentsByPost = async (postId) => {
@@ -30,4 +38,12 @@ export const updateComment = async (id, content) => {
 export const deleteComment = async (id) => {
   const response = await api.delete(`/comments/${id}`);
   return response.data;
+};
+
+/**
+ * Vote on a comment
+ */
+export const voteComment = async (commentId, voteType) => {
+  const response = await api.post(`/comments/${commentId}/vote`, { vote_type: voteType });
+  return response.data.data;
 };

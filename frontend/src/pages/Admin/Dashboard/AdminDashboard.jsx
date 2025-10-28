@@ -17,17 +17,18 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const [usersRes, projectsRes, postsRes] = await Promise.all([
+      const [usersRes, projectsRes, postsRes, commentsRes] = await Promise.all([
         api.get('/users'),
         api.get('/projects'),
-        api.get('/posts')
+        api.get('/posts'),
+        api.get('/comments') 
       ]);
 
       setStats({
         users: usersRes.data.data?.length || 0,
         projects: projectsRes.data.data?.length || 0,
         posts: postsRes.data.data?.length || 0,
-        comments: 0
+        comments: commentsRes.data.data?.length || 0 
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -65,7 +66,7 @@ const AdminDashboard = () => {
       icon: FiMessageSquare, 
       iconColor: 'text-yellow-500',
       textColor: 'text-yellow-500',
-      link: '#' 
+      link: '/admin/comments'
     }
   ];
 

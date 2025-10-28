@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiSave, FiX, FiPlus, FiTrash2, FiEye, FiUpload, FiDownload } from 'react-icons/fi';
+import { FiSave, FiX, FiPlus, FiTrash2, FiEye, FiUpload, FiDownload, FiEdit2 } from 'react-icons/fi';
+import ReactMarkdown from 'react-markdown'; // ✅ React Markdown
+import remarkGfm from 'remark-gfm'; // ✅ GitHub Flavored Markdown
 import { 
   createRelease, 
   updateRelease, 
   getReleaseById,
   addFileToRelease,
-  deleteReleaseFile
+  deleteReleaseFile,
+  updateReleaseFile // ✅ Yeni import
 } from '../../../services/releaseService';
 import api from '../../../services/api';
 import Loading from '../../../components/common/Loading';
@@ -23,6 +26,10 @@ const ReleaseForm = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [projects, setProjects] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
+
+  // ✅ Edit modal state
+  const [editingFile, setEditingFile] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   const [formData, setFormData] = useState({
     project_id: '',
@@ -128,11 +135,10 @@ const handleFileUpload = async (e) => {
 
     const uploadedFile = response.data.data;
 
-    // ✅ Backend'den gelen tam URL'i kullan
     setNewFile({
       platform: newFile.platform || '',
       file_name: uploadedFile.file_name,
-      file_url: uploadedFile.file_url, // Zaten tam URL geldi
+      file_url: uploadedFile.file_url,
       file_size: uploadedFile.file_size.toString(),
       file_type: uploadedFile.file_type
     });
@@ -187,7 +193,6 @@ const handleFileUpload = async (e) => {
     if (!validateFile()) return;
 
     if (isEditMode) {
-      // Add file to existing release
       try {
         const fileData = {
           ...newFile,
@@ -196,9 +201,8 @@ const handleFileUpload = async (e) => {
         
         await addFileToRelease(id, fileData);
         toast.success('File added successfully');
-        fetchRelease(); // Refresh to get updated files
+        fetchRelease();
         
-        // Reset form
         setNewFile({
           platform: '',
           file_name: '',
@@ -211,7 +215,6 @@ const handleFileUpload = async (e) => {
         toast.error('Failed to add file');
       }
     } else {
-      // Add to local state for new release
       setFiles([...files, { ...newFile, id: Date.now() }]);
       setNewFile({
         platform: '',
@@ -224,9 +227,41 @@ const handleFileUpload = async (e) => {
     }
   };
 
+  // ✅ Open edit modal
+  const handleEditFile = (file) => {
+    setEditingFile({ ...file });
+    setShowEditModal(true);
+  };
+
+  // ✅ Update file in edit modal
+  const handleUpdateFile = async () => {
+    if (!editingFile.platform.trim()) {
+      toast.error('Platform is required');
+      return;
+    }
+
+    try {
+      await updateReleaseFile(editingFile.id, {
+        platform: editingFile.platform,
+        file_name: editingFile.file_name,
+        file_url: editingFile.file_url,
+        file_size: editingFile.file_size ? parseInt(editingFile.file_size) : null,
+        file_type: editingFile.file_type
+      });
+
+      toast.success('File updated successfully');
+      setShowEditModal(false);
+      setEditingFile(null);
+      fetchRelease();
+    } catch (error) {
+      console.error('Error updating file:', error);
+      toast.error('Failed to update file');
+    }
+  };
+
   const handleRemoveFile = async (fileId, isServerFile) => {
     if (isServerFile && isEditMode) {
-      if (window.confirm('Are you sure you want to delete this file?')) {
+      if (window.confirm('Are you sure you want to delete this file? The physical file will also be deleted from the server.')) {
         try {
           await deleteReleaseFile(fileId);
           toast.success('File deleted successfully');
@@ -265,7 +300,6 @@ const handleFileUpload = async (e) => {
         const response = await createRelease(releaseData);
         const releaseId = response.data.id;
 
-        // Add files to the newly created release
         if (files.length > 0) {
           await Promise.all(
             files.map(file => 
@@ -410,15 +444,36 @@ const handleFileUpload = async (e) => {
               </button>
             </div>
 
-            {showPreview ? (
-              <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-4 min-h-[300px] prose prose-invert max-w-none">
-                {formData.release_notes ? (
-                  <div dangerouslySetInnerHTML={{ __html: formData.release_notes.replace(/\n/g, '<br />') }} />
-                ) : (
-                  <p className="text-gray-500 italic">No release notes yet</p>
-                )}
-              </div>
-            ) : (
+              {showPreview ? (
+                <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-6 min-h-[300px]">
+                  {formData.release_notes ? (
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      className="prose prose-invert max-w-none"
+                      components={{
+                        h1: ({node, ...props}) => <h1 className="text-3xl font-bold text-white border-b border-neutral-600 pb-2 mb-4 mt-6" {...props} />,
+                        h2: ({node, ...props}) => <h2 className="text-2xl font-bold text-white border-b border-neutral-700 pb-2 mb-3 mt-5" {...props} />,
+                        h3: ({node, ...props}) => <h3 className="text-xl font-bold text-white mb-2 mt-4" {...props} />,
+                        h4: ({node, ...props}) => <h4 className="text-lg font-bold text-white mb-2 mt-3" {...props} />,
+                        p: ({node, ...props}) => <p className="text-gray-300 my-3 leading-relaxed" {...props} />,
+                        ul: ({node, ...props}) => <ul className="list-disc pl-6 my-4 text-gray-300" {...props} />,
+                        ol: ({node, ...props}) => <ol className="list-decimal pl-6 my-4 text-gray-300" {...props} />,
+                        li: ({node, ...props}) => <li className="my-2" {...props} />,
+                        strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
+                        code: ({node, inline, ...props}) => 
+                          inline ? 
+                            <code className="bg-neutral-900 text-purple-400 px-1.5 py-0.5 rounded text-sm font-mono" {...props} /> :
+                            <code className="block bg-neutral-900 border border-neutral-700 rounded p-4 my-4 overflow-x-auto text-sm" {...props} />,
+                        blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-purple-500 pl-4 italic text-gray-400 my-4" {...props} />,
+                      }}
+                    >
+                      {formData.release_notes}
+                    </ReactMarkdown>
+                  ) : (
+                    <p className="text-gray-500 italic">No release notes yet</p>
+                  )}
+                </div>
+              ) : (
               <textarea
                 name="release_notes"
                 value={formData.release_notes}
@@ -579,14 +634,28 @@ const handleFileUpload = async (e) => {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => handleRemoveFile(file.id, !!file.release_id)}
-            className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition"
-            title="Delete file"
-          >
-            <FiTrash2 size={18} />
-          </button>
+          <div className="flex gap-2">
+            {/* Edit Button - only for existing files */}
+            {file.release_id && (
+              <button
+                type="button"
+                onClick={() => handleEditFile(file)}
+                className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-lg transition"
+                title="Edit file"
+              >
+                <FiEdit2 size={18} />
+              </button>
+            )}
+            {/* Delete Button */}
+            <button
+              type="button"
+              onClick={() => handleRemoveFile(file.id, !!file.release_id)}
+              className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition"
+              title="Delete file"
+            >
+              <FiTrash2 size={18} />
+            </button>
+          </div>
         </div>
       ))}
     </div>
@@ -617,6 +686,62 @@ const handleFileUpload = async (e) => {
           </button>
         </div>
       </form>
+
+      {/* ✅ Edit File Modal */}
+      {showEditModal && editingFile && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-xl font-bold text-white mb-4">Edit File</h3>
+            
+            <div className="space-y-4">
+              {/* Platform */}
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">
+                  Platform <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={editingFile.platform}
+                  onChange={(e) => setEditingFile({ ...editingFile, platform: e.target.value })}
+                  className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
+                >
+                  <option value="">Select Platform</option>
+                  <option value="All">All Platforms</option>
+                  <option value="Windows">Windows</option>
+                  <option value="Mac">Mac</option>
+                  <option value="Linux">Linux</option>
+                </select>
+              </div>
+
+              {/* Current File Info */}
+              <div className="bg-neutral-800 rounded-lg p-3">
+                <p className="text-sm text-gray-400 mb-1">Current File:</p>
+                <p className="text-white text-sm font-medium">{editingFile.file_name}</p>
+                <p className="text-gray-500 text-xs mt-1">
+                  {editingFile.file_type?.toUpperCase()} • {(editingFile.file_size / 1024 / 1024).toFixed(1)} MB
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingFile(null);
+                }}
+                className="flex-1 px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateFile}
+                className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition"
+              >
+                Update
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

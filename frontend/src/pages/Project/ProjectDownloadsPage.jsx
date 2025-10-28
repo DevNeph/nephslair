@@ -90,16 +90,18 @@ const handleDownload = async (file) => {
                 {project.name}
               </h2>
               
-              {project.version && (
+              {/* ✅ Latest Version yerine project.version */}
+              {project.latest_version && (
                 <div className="mb-3">
                   <p className="text-sm text-gray-500 mb-1">Latest Version</p>
-                  <p className="text-white">{project.version}</p>
+                  <p className="text-white">{project.latest_version}</p>
                 </div>
               )}
               
+              {/* ✅ Last Updated yerine Publish Date */}
               <div>
-                <p className="text-sm text-gray-500 mb-1">Publish Date</p>
-                <p className="text-white">{formatDate(project.created_at)}</p>
+                <p className="text-sm text-gray-500 mb-1">Last Updated</p>
+                <p className="text-white">{formatDate(project.updated_at)}</p>
               </div>
             </div>
 

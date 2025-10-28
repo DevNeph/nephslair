@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown'; // ✅ React Markdown
+import remarkGfm from 'remark-gfm'; // ✅ GitHub Flavored Markdown
 import { getProjectBySlug } from '../../services/projectService';
 import { getReleasesByProject } from '../../services/releaseService';
 import Loading from '../../components/common/Loading';
@@ -68,16 +70,18 @@ const ProjectChangelogsPage = () => {
                 {project.name}
               </h2>
               
-              {project.version && (
+              {/* ✅ Latest Version yerine project.version */}
+              {project.latest_version && (
                 <div className="mb-3">
                   <p className="text-sm text-gray-500 mb-1">Latest Version</p>
-                  <p className="text-white">{project.version}</p>
+                  <p className="text-white">{project.latest_version}</p>
                 </div>
               )}
               
+              {/* ✅ Last Updated yerine Publish Date */}
               <div>
-                <p className="text-sm text-gray-500 mb-1">Publish Date</p>
-                <p className="text-white">{formatDate(project.created_at)}</p>
+                <p className="text-sm text-gray-500 mb-1">Last Updated</p>
+                <p className="text-white">{formatDate(project.updated_at)}</p>
               </div>
             </div>
 
@@ -144,22 +148,38 @@ const ProjectChangelogsPage = () => {
                   </button>
 
                   {/* Version Content */}
-                  {expandedVersions.has(index) && (
-                    <div className="px-6 pb-6 border-t border-gray-700">
-                      {release.release_notes ? (
-                        <div className="prose prose-invert max-w-none mt-4">
-                          <div 
-                            className="text-gray-300 whitespace-pre-wrap"
-                            dangerouslySetInnerHTML={{ __html: release.release_notes.replace(/\n/g, '<br />') }}
-                          />
-                        </div>
-                      ) : (
-                        <p className="text-gray-500 italic mt-4">No release notes available</p>
-                      )}
-
-
-                    </div>
-                  )}
+                {expandedVersions.has(index) && (
+                  <div className="px-6 pb-6 border-t border-gray-700">
+                    {release.release_notes ? (
+                      <div className="mt-6">
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          className="prose prose-invert max-w-none"
+                          components={{
+                            h1: ({node, ...props}) => <h1 className="text-3xl font-bold text-white border-b border-gray-600 pb-2 mb-4 mt-6" {...props} />,
+                            h2: ({node, ...props}) => <h2 className="text-2xl font-bold text-white border-b border-gray-700 pb-2 mb-3 mt-5" {...props} />,
+                            h3: ({node, ...props}) => <h3 className="text-xl font-bold text-white mb-2 mt-4" {...props} />,
+                            h4: ({node, ...props}) => <h4 className="text-lg font-bold text-white mb-2 mt-3" {...props} />,
+                            p: ({node, ...props}) => <p className="text-gray-300 my-3 leading-relaxed" {...props} />,
+                            ul: ({node, ...props}) => <ul className="list-disc pl-6 my-4 text-gray-300" {...props} />,
+                            ol: ({node, ...props}) => <ol className="list-decimal pl-6 my-4 text-gray-300" {...props} />,
+                            li: ({node, ...props}) => <li className="my-2" {...props} />,
+                            strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
+                            code: ({node, inline, ...props}) => 
+                              inline ? 
+                                <code className="bg-black text-purple-400 px-1.5 py-0.5 rounded text-sm font-mono" {...props} /> :
+                                <code className="block bg-black border border-gray-700 rounded p-4 my-4 overflow-x-auto text-sm" {...props} />,
+                            blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-purple-500 pl-4 italic text-gray-400 my-4" {...props} />,
+                          }}
+                        >
+                          {release.release_notes}
+                        </ReactMarkdown>
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 italic mt-4">No release notes available</p>
+                    )}
+                  </div>
+                )}
                 </div>
               ))}
             </div>

@@ -2,6 +2,27 @@ const { Release, ReleaseFile, Project } = require('../models');
 const path = require('path');
 const fs = require('fs'); 
 
+// ✅ Helper function to update project's latest version
+const updateProjectLatestVersion = async (projectId) => {
+  try {
+    const latestRelease = await Release.findOne({
+      where: { 
+        project_id: projectId,
+        is_published: true 
+      },
+      order: [['release_date', 'DESC']],
+      attributes: ['version']
+    });
+
+    await Project.update(
+      { latest_version: latestRelease ? latestRelease.version : null },
+      { where: { id: projectId } }
+    );
+  } catch (error) {
+    console.error('Error updating project latest version:', error);
+  }
+};
+
 // @desc    Get all releases for a project
 // @route   GET /api/releases/project/:projectSlug
 // @access  Public
@@ -194,6 +215,9 @@ const createRelease = async (req, res) => {
       is_published: is_published !== undefined ? is_published : true
     });
 
+    // ✅ Update project's latest version
+    await updateProjectLatestVersion(project_id);
+
     res.status(201).json({
       success: true,
       message: 'Release created successfully',
@@ -231,6 +255,9 @@ const updateRelease = async (req, res) => {
 
     await release.save();
 
+    // ✅ Update project's latest version
+    await updateProjectLatestVersion(release.project_id);
+
     res.status(200).json({
       success: true,
       message: 'Release updated successfully',
@@ -250,7 +277,12 @@ const updateRelease = async (req, res) => {
 // @access  Private/Admin
 const deleteRelease = async (req, res) => {
   try {
-    const release = await Release.findByPk(req.params.id);
+    const release = await Release.findByPk(req.params.id, {
+      include: [{
+        model: ReleaseFile,
+        as: 'files'
+      }]
+    });
 
     if (!release) {
       return res.status(404).json({
@@ -259,11 +291,39 @@ const deleteRelease = async (req, res) => {
       });
     }
 
+    const projectId = release.project_id;
+
+    // ✅ Delete all physical files associated with this release
+    if (release.files && release.files.length > 0) {
+      for (const file of release.files) {
+        try {
+          // Extract filename from URL
+          const fileUrl = file.file_url;
+          const filename = fileUrl.split('/downloads/').pop();
+          
+          if (filename) {
+            const filePath = path.join(__dirname, '../downloads', filename);
+            
+            // Check if file exists and delete it
+            if (fs.existsSync(filePath)) {
+              fs.unlinkSync(filePath);
+              console.log(`✅ Deleted physical file: ${filename}`);
+            }
+          }
+        } catch (fileError) {
+          console.error(`❌ Error deleting file ${file.file_name}:`, fileError);
+        }
+      }
+    }
+
     await release.destroy();
+
+    // ✅ Update project's latest version
+    await updateProjectLatestVersion(projectId);
 
     res.status(200).json({
       success: true,
-      message: 'Release deleted successfully'
+      message: 'Release and associated files deleted successfully'
     });
   } catch (error) {
     res.status(500).json({
@@ -335,6 +395,10 @@ const updateReleaseFile = async (req, res) => {
       });
     }
 
+    // ✅ Store old file info if URL is changing
+    const oldFileUrl = file.file_url;
+    const isUrlChanging = file_url && file_url !== oldFileUrl;
+
     if (platform) file.platform = platform;
     if (file_name) file.file_name = file_name;
     if (file_url) file.file_url = file_url;
@@ -342,6 +406,22 @@ const updateReleaseFile = async (req, res) => {
     if (file_type !== undefined) file.file_type = file_type;
 
     await file.save();
+
+    // ✅ If URL changed, delete old physical file
+    if (isUrlChanging) {
+      try {
+        const oldFilename = oldFileUrl.split('/downloads/').pop();
+        if (oldFilename) {
+          const oldFilePath = path.join(__dirname, '../downloads', oldFilename);
+          if (fs.existsSync(oldFilePath)) {
+            fs.unlinkSync(oldFilePath);
+            console.log(`✅ Deleted old file: ${oldFilename}`);
+          }
+        }
+      } catch (fileError) {
+        console.error('❌ Error deleting old file:', fileError);
+      }
+    }
 
     res.status(200).json({
       success: true,
@@ -369,6 +449,24 @@ const deleteReleaseFile = async (req, res) => {
         success: false,
         message: 'File not found'
       });
+    }
+
+    // ✅ Delete physical file
+    try {
+      const fileUrl = file.file_url;
+      const filename = fileUrl.split('/downloads/').pop();
+      
+      if (filename) {
+        const filePath = path.join(__dirname, '../downloads', filename);
+        
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log(`✅ Deleted physical file: ${filename}`);
+        }
+      }
+    } catch (fileError) {
+      console.error('❌ Error deleting physical file:', fileError);
+      // Continue with database deletion even if file deletion fails
     }
 
     await file.destroy();

@@ -702,13 +702,17 @@ const PostPage = () => {
           <Link to="/" className="text-gray-400 hover:text-white transition">
             Home
           </Link>
-          <span className="text-gray-600">/</span>
-          <Link 
-            to={`/project/${post.project?.slug}`} 
-            className="text-gray-400 hover:text-white transition"
-          >
-            {post.project?.name}
-          </Link>
+          {post.project && (
+            <>
+              <span className="text-gray-600">/</span>
+              <Link 
+                to={`/project/${post.project.slug}`} 
+                className="text-gray-400 hover:text-white transition"
+              >
+                {post.project.name}
+              </Link>
+            </>
+          )}
           <span className="text-gray-600">/</span>
           <span className="text-gray-500 truncate max-w-md">{post.title}</span>
         </nav>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, memo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useLocation } from 'react-router-dom';
 import { FiArrowUp, FiArrowDown, FiMessageSquare, FiTrash2, FiEdit2, FiX, FiClock, FiChevronLeft, FiChevronUp } from 'react-icons/fi';
 import { getPostBySlug, votePost } from '../../services/postService';
 import { createComment, deleteComment, updateComment, voteComment } from '../../services/commentService';
@@ -198,6 +198,7 @@ const ReplyForm = memo(({ commentId, onSubmit, onCancel, submitting, user }) => 
 
 const PostPage = () => {
   const { slug, postSlug } = useParams();
+  const location = useLocation();
   const { user } = useAuth();
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -208,7 +209,7 @@ const PostPage = () => {
   const [replyingTo, setReplyingTo] = useState(null);
   const [votingComment, setVotingComment] = useState(null);
   const [votingPost, setVotingPost] = useState(false);
-  const [expandedComments, setExpandedComments] = useState(new Set()); // Başlangıçta tümü kapalı
+  const [expandedComments, setExpandedComments] = useState(new Set());
   const [historyModalCommentId, setHistoryModalCommentId] = useState(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
@@ -358,7 +359,6 @@ const PostPage = () => {
       setVotingPost(true);
       const result = await votePost(post.id, voteType);
       
-      // Update local post state
       setPost(prevPost => ({
         ...prevPost,
         upvotes: result.upvotes,
@@ -426,17 +426,13 @@ const PostPage = () => {
     setExpandedComments(prev => {
       const newSet = new Set(prev);
       if (newSet.has(commentId)) {
-        // Kapatma: Sadece bu comment'i kapat, alt yorumlar kendi başına
         newSet.delete(commentId);
       } else {
-        // Açma: Bu comment ve TÜM alt yorumları aç
         newSet.add(commentId);
         
-        // Bu comment'in tüm descendants'larını bul ve aç
         const findAndExpandDescendants = (comments, targetId) => {
           for (const comment of comments) {
             if (comment.id === targetId && comment.replies) {
-              // Bu comment'in tüm alt yorumlarını recursive olarak aç
               const expandAllChildren = (replies) => {
                 replies.forEach(reply => {
                   newSet.add(reply.id);
@@ -457,7 +453,6 @@ const PostPage = () => {
           return false;
         };
         
-        // Post'un yorumlarında ara (organize edilmiş halde)
         if (post && post.comments) {
           const organized = organizeComments(post.comments);
           findAndExpandDescendants(organized, commentId);
@@ -480,21 +475,20 @@ const PostPage = () => {
     if (!comment.created_at || !comment.updated_at) return false;
     const created = new Date(comment.created_at).getTime();
     const updated = new Date(comment.updated_at).getTime();
-    return updated - created > 1000; // 1 saniyeden fazla fark varsa edited
+    return updated - created > 1000;
   };
 
   // Comment Item Component
   const CommentItem = ({ comment, depth = 0 }) => {
     const voteScore = getVoteCount(comment.upvotes, comment.downvotes);
     const isVoting = votingComment === comment.id;
-    const isExpanded = expandedComments.has(comment.id); // Expanded olup olmadığını kontrol et
+    const isExpanded = expandedComments.has(comment.id);
     const replyCount = countReplies(comment);
     const isDeleted = comment.is_deleted || comment.content === '[deleted]';
     const isEdited = hasBeenEdited(comment);
 
     return (
       <div className={`relative ${depth > 0 ? 'ml-6' : ''}`}>
-        {/* Thread Line - Clickable */}
         {depth > 0 && (
           <div 
             className="absolute left-0 top-0 bottom-0 w-0.5 bg-gray-800 hover:bg-purple-600 transition cursor-pointer"
@@ -505,7 +499,6 @@ const PostPage = () => {
 
         <div className={`${depth > 0 ? 'pl-6' : ''} ${depth === 0 ? 'border-t border-gray-700 pt-4' : 'pt-2'}`}>
           <div className="flex items-start gap-3">
-            {/* Vote Section */}
             <div className="flex flex-col items-center gap-1 pt-1">
               <button
                 onClick={() => handleVote(comment.id, 'upvote')}
@@ -530,12 +523,9 @@ const PostPage = () => {
               </button>
             </div>
 
-              {/* Comment Content */}
               <div className="flex-1 min-w-0">
                 {isDeleted ? (
-                  /* Deleted Comment Layout - Vertically Centered */
                   <div className="flex flex-col justify-center min-h-[80px]">
-                    {/* Collapse button on its own line if there are replies */}
                     {replyCount > 0 && (
                       <div className="mb-2">
                         <button
@@ -550,30 +540,24 @@ const PostPage = () => {
                       </div>
                     )}
                     
-                    {/* Deleted message */}
                     <p className="text-sm text-gray-500 italic">
                       Comment deleted by user
                     </p>
                   </div>
                 ) : (
-                /* Normal Comment Header */
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  {/* Avatar */}
                   <div className="w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
                     {comment.user?.username?.charAt(0).toUpperCase() || 'A'}
                   </div>
 
-                  {/* Username */}
                   <span className="text-sm font-medium text-white">
                     {comment.user?.username || 'Anonymous'}
                   </span>
 
-                  {/* Date */}
                   <span className="text-xs text-gray-500">
                     {formatDate(comment.created_at)}
                   </span>
 
-                  {/* Edited Badge */}
                   {isEdited && (
                     <button
                       onClick={() => setHistoryModalCommentId(comment.id)}
@@ -584,7 +568,6 @@ const PostPage = () => {
                     </button>
                   )}
 
-                  {/* Collapse/Expand Button */}
                   {replyCount > 0 && (
                     <button
                       onClick={() => toggleExpand(comment.id)}
@@ -599,7 +582,6 @@ const PostPage = () => {
                 </div>
               )}
 
-              {/* Content */}
               {!isDeleted && (
                 <>
                   {editingCommentId === comment.id ? (
@@ -615,7 +597,6 @@ const PostPage = () => {
                         {comment.content}
                       </p>
                       
-                      {/* Action Buttons */}
                       <div className="flex items-center gap-3">
                         {user && (
                           <button
@@ -649,7 +630,6 @@ const PostPage = () => {
                     </>
                   )}
 
-                  {/* Reply Form */}
                   {replyingTo === comment.id && (
                     <ReplyForm
                       commentId={comment.id}
@@ -662,7 +642,6 @@ const PostPage = () => {
                 </>
               )}
 
-              {/* Nested Replies - Show for both deleted and normal comments */}
               {isExpanded && comment.replies && comment.replies.length > 0 && (
                 <div className="mt-2">
                   {comment.replies.map((reply) => (
@@ -684,41 +663,16 @@ const PostPage = () => {
   const voteCount = getVoteCount(post.upvotes, post.downvotes);
   const organizedComments = post.comments ? organizeComments(post.comments) : [];
 
+  // Navigation items for project sidebar
+  const navItems = post.project ? [
+    { label: 'Project Home Page', path: `/project/${post.project.slug}`, active: false },
+    { label: 'About', path: `/project/${post.project.slug}/about`, active: false },
+    { label: 'Downloads', path: `/project/${post.project.slug}/downloads`, active: false },
+    { label: 'Changelogs', path: `/project/${post.project.slug}/changelogs`, active: false }
+  ] : [];
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-12">
-      {/* Breadcrumb & Back Button */}
-      <div className="mb-6">
-        {/* Back Button */}
-        <button
-          onClick={() => window.history.back()}
-          className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4"
-        >
-          <FiChevronLeft size={20} />
-          <span>Back</span>
-        </button>
-
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm">
-          <Link to="/" className="text-gray-400 hover:text-white transition">
-            Home
-          </Link>
-          {post.project && (
-            <>
-              <span className="text-gray-600">/</span>
-              <Link 
-                to={`/project/${post.project.slug}`} 
-                className="text-gray-400 hover:text-white transition"
-              >
-                {post.project.name}
-              </Link>
-            </>
-          )}
-          <span className="text-gray-600">/</span>
-          <span className="text-gray-500 truncate max-w-md">{post.title}</span>
-        </nav>
-      </div>
-
-      {/* Edit History Modal */}
+    <div className="max-w-7xl mx-auto px-4 py-8">
       {historyModalCommentId && (
         <EditHistoryModal
           commentId={historyModalCommentId}
@@ -726,96 +680,192 @@ const PostPage = () => {
         />
       )}
 
-      {/* Post Container */}
-      <div className="bg-black border border-gray-700 rounded-lg p-8 mb-8">
-        <div className="flex justify-end mb-6">
-          <span className="text-sm text-gray-500">
-            {formatDate(post.published_at || post.created_at)}
-          </span>
-        </div>
-
-        <h1 className="text-4xl font-normal text-white mb-3">{post.title}</h1>
-        
-        <Link
-          to={`/project/${post.project?.slug}`}
-          className="inline-block text-base text-gray-400 hover:text-gray-300 mb-6"
-        >
-          {post.project?.name}
-        </Link>
-
-        <hr className="border-gray-700 my-6" />
-
-        <div className="text-gray-300 leading-relaxed mb-6 whitespace-pre-wrap">
-          {post.content}
-        </div>
-
-        <hr className="border-gray-700 my-6" />
-
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => handlePostVote('upvote')}
-            disabled={!user || votingPost}
-            className="p-2 hover:bg-gray-900 rounded-lg transition disabled:opacity-50"
-          >
-            <FiArrowUp className="text-gray-400 hover:text-green-500" size={20} />
-          </button>
-          <span className={`text-lg font-medium ${voteCount > 0 ? 'text-green-500' : voteCount < 0 ? 'text-red-500' : 'text-gray-400'}`}>
-            {voteCount}
-          </span>
-          <button 
-            onClick={() => handlePostVote('downvote')}
-            disabled={!user || votingPost}
-            className="p-2 hover:bg-gray-900 rounded-lg transition disabled:opacity-50"
-          >
-            <FiArrowDown className="text-gray-400 hover:text-red-500" size={20} />
-          </button>
-        </div>
-      </div>
-
-      {/* Comments Section */}
-      <div className="bg-black border border-gray-700 rounded-lg p-8">
-        <h2 className="text-2xl font-normal text-white mb-6">
-          Comments ({post.comments?.length || 0})
-        </h2>
-        
-        {user ? (
-          <form onSubmit={(e) => handleSubmitComment(e)} className="mb-8">
-            <textarea
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="What are your thoughts?"
-              rows="4"
-              className="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-500 resize-none"
-            />
-            <div className="flex justify-end mt-3">
+      <div className="flex gap-8">
+        {/* Left Sidebar - Only show if post has a project */}
+        {post.project && (
+          <aside className="w-64 flex-shrink-0">
+            <div className="sticky top-24">
+              {/* Back Button */}
               <button
-                type="submit"
-                disabled={submitting || !commentText.trim()}
-                className="px-6 py-2 bg-white text-black hover:bg-gray-200 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => window.history.back()}
+                className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4 w-full"
               >
-                {submitting ? 'Posting...' : 'Comment'}
+                <FiChevronLeft size={20} />
+                <span>Back</span>
+              </button>
+
+              {/* Project Info Card */}
+              <div className="bg-black border border-gray-700 rounded-lg p-6 mb-6">
+                <h2 className="text-xl font-normal text-white mb-4">
+                  {post.project.name}
+                </h2>
+                
+                {post.project.latest_version && (
+                  <div className="mb-3">
+                    <p className="text-sm text-gray-500 mb-1">Latest Version</p>
+                    <p className="text-white">{post.project.latest_version}</p>
+                  </div>
+                )}
+                
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Last Updated</p>
+                  <p className="text-white">{formatDate(post.project.updated_at)}</p>
+                </div>
+              </div>
+
+              {/* Navigation Links */}
+              <nav className="space-y-2">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className="block px-4 py-2 rounded-lg transition text-gray-400 hover:bg-gray-800 hover:text-white"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+          </aside>
+        )}
+
+        {/* Main Content */}
+        <main className="flex-1 min-w-0">
+          {/* Breadcrumb - Only show if no sidebar */}
+          {!post.project && (
+            <div className="mb-6">
+              <button
+                onClick={() => window.history.back()}
+                className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition mb-4"
+              >
+                <FiChevronLeft size={20} />
+                <span>Back</span>
+              </button>
+
+              <nav className="flex items-center gap-2 text-sm">
+                <Link to="/" className="text-gray-400 hover:text-white transition">
+                  Home
+                </Link>
+                <span className="text-gray-600">/</span>
+                <span className="text-gray-500 truncate max-w-md">{post.title}</span>
+              </nav>
+            </div>
+          )}
+
+          {/* Breadcrumb - Show if sidebar exists */}
+          {post.project && (
+            <div className="mb-6">
+              <nav className="flex items-center gap-2 text-sm">
+                <Link to="/" className="text-gray-400 hover:text-white transition">
+                  Home
+                </Link>
+                <span className="text-gray-600">/</span>
+                <Link 
+                  to={`/project/${post.project.slug}`} 
+                  className="text-gray-400 hover:text-white transition"
+                >
+                  {post.project.name}
+                </Link>
+                <span className="text-gray-600">/</span>
+                <span className="text-gray-500 truncate max-w-md">{post.title}</span>
+              </nav>
+            </div>
+          )}
+
+          {/* Post Container */}
+          <div className="bg-black border border-gray-700 rounded-lg p-8 mb-8">
+            <div className="flex justify-end mb-6">
+              <span className="text-sm text-gray-500">
+                {formatDate(post.published_at || post.created_at)}
+              </span>
+            </div>
+
+            <h1 className="text-4xl font-normal text-white mb-3">{post.title}</h1>
+            
+            {post.project && (
+              <Link
+                to={`/project/${post.project.slug}`}
+                className="inline-block text-base text-gray-400 hover:text-gray-300 mb-6"
+              >
+                {post.project.name}
+              </Link>
+            )}
+
+            <hr className="border-gray-700 my-6" />
+
+            <div className="text-gray-300 leading-relaxed mb-6 whitespace-pre-wrap">
+              {post.content}
+            </div>
+
+            <hr className="border-gray-700 my-6" />
+
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => handlePostVote('upvote')}
+                disabled={!user || votingPost}
+                className="p-2 hover:bg-gray-900 rounded-lg transition disabled:opacity-50"
+              >
+                <FiArrowUp className="text-gray-400 hover:text-green-500" size={20} />
+              </button>
+              <span className={`text-lg font-medium ${voteCount > 0 ? 'text-green-500' : voteCount < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                {voteCount}
+              </span>
+              <button 
+                onClick={() => handlePostVote('downvote')}
+                disabled={!user || votingPost}
+                className="p-2 hover:bg-gray-900 rounded-lg transition disabled:opacity-50"
+              >
+                <FiArrowDown className="text-gray-400 hover:text-red-500" size={20} />
               </button>
             </div>
-          </form>
-        ) : (
-          <div className="mb-8 p-4 border border-gray-700 rounded-lg text-center">
-            <p className="text-gray-400">
-              Please <Link to="/login" className="text-white hover:text-gray-400 underline">login</Link> to comment
-            </p>
           </div>
-        )}
 
-        {organizedComments.length > 0 ? (
-          <div className="space-y-4">
-            {organizedComments.map((comment) => (
-              <CommentItem key={comment.id} comment={comment} depth={0} />
-            ))}
+          {/* Comments Section */}
+          <div className="bg-black border border-gray-700 rounded-lg p-8">
+            <h2 className="text-2xl font-normal text-white mb-6">
+              Comments ({post.comments?.length || 0})
+            </h2>
+            
+            {user ? (
+              <form onSubmit={(e) => handleSubmitComment(e)} className="mb-8">
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="What are your thoughts?"
+                  rows="4"
+                  className="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-500 resize-none"
+                />
+                <div className="flex justify-end mt-3">
+                  <button
+                    type="submit"
+                    disabled={submitting || !commentText.trim()}
+                    className="px-6 py-2 bg-white text-black hover:bg-gray-200 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {submitting ? 'Posting...' : 'Comment'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="mb-8 p-4 border border-gray-700 rounded-lg text-center">
+                <p className="text-gray-400">
+                  Please <Link to="/login" className="text-white hover:text-gray-400 underline">login</Link> to comment
+                </p>
+              </div>
+            )}
+
+            {organizedComments.length > 0 ? (
+              <div className="space-y-4">
+                {organizedComments.map((comment) => (
+                  <CommentItem key={comment.id} comment={comment} depth={0} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">
+                No comments yet. Start the discussion!
+              </p>
+            )}
           </div>
-        ) : (
-          <p className="text-gray-500 text-center py-8">
-            No comments yet. Start the discussion!
-          </p>
-        )}
+        </main>
       </div>
 
       {/* Scroll to Top Button */}

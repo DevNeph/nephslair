@@ -32,15 +32,15 @@ const PostForm = () => {
     }
   }, [id]);
 
-    const fetchProjects = async () => {
+  const fetchProjects = async () => {
     try {
-        const response = await api.get('/projects/admin/all');
-        setProjects(response.data.data);
+      const response = await api.get('/projects/admin/all');
+      setProjects(response.data.data);
     } catch (error) {
-        console.error('Error fetching projects:', error);
-        toast.error('Failed to load projects');
+      console.error('Error fetching projects:', error);
+      toast.error('Failed to load projects');
     }
-    };
+  };
 
   const fetchPost = async () => {
     try {
@@ -51,7 +51,7 @@ const PostForm = () => {
       setFormData({
         title: post.title,
         content: post.content,
-        project_id: post.project_id,
+        project_id: post.project_id || '',
         status: post.status,
         excerpt: post.excerpt || ''
       });
@@ -89,9 +89,7 @@ const PostForm = () => {
       newErrors.content = 'Content is required';
     }
 
-    if (!formData.project_id) {
-      newErrors.project_id = 'Please select a project';
-    }
+    // project_id artık optional, validation kaldırıldı
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -167,24 +165,24 @@ const PostForm = () => {
 
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-300 mb-2">
-              Project <span className="text-red-500">*</span>
+              Project <span className="text-gray-500">(Optional)</span>
             </label>
             <select
               name="project_id"
-              value={formData.project_id}
+              value={formData.project_id || ''}
               onChange={handleChange}
-              className={`w-full bg-neutral-800 border ${
-                errors.project_id ? 'border-red-500' : 'border-neutral-700'
-              } rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 appearance-none cursor-pointer`}
+              className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 appearance-none cursor-pointer"
             >
-              <option value="">Select a project</option>
+              <option value="">No Project (General Feed)</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name}
                 </option>
               ))}
             </select>
-            {errors.project_id && <p className="text-red-500 text-sm mt-1">{errors.project_id}</p>}
+            <p className="text-gray-500 text-xs mt-1">
+              Leave as "No Project" to post directly to the main feed without a project.
+            </p>
           </div>
 
           <div className="mb-6">

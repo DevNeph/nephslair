@@ -1,5 +1,8 @@
-const { Post, Project, Comment, User, Poll, PollOption, Vote } = require('../models');
+const { Post, Project, Comment, User, Poll, PollOption, Vote, sequelize } = require('../models');
 
+// @desc    Get all published posts (for homepage)
+// @route   GET /api/posts
+// @access  Public
 // @desc    Get all published posts (for homepage)
 // @route   GET /api/posts
 // @access  Public
@@ -8,6 +11,18 @@ const getAllPosts = async (req, res) => {
     const posts = await Post.findAll({
       where: { status: 'published' },
       order: [['published_at', 'DESC']],
+      attributes: {
+        include: [
+          [
+            sequelize.literal(`(
+              SELECT COUNT(*)
+              FROM comments
+              WHERE comments.post_id = Post.id
+            )`),
+            'comments_count'
+          ]
+        ]
+      },
       include: [
         {
           model: Project,
@@ -19,8 +34,7 @@ const getAllPosts = async (req, res) => {
           as: 'author',
           attributes: ['id', 'username']
         }
-      ],
-      attributes: ['id', 'title', 'slug', 'content', 'excerpt', 'project_id', 'status', 'upvotes', 'downvotes', 'published_at', 'created_at', 'updated_at']
+      ]
     });
 
     res.status(200).json({
@@ -59,20 +73,14 @@ const getPostsByProject = async (req, res) => {
         status: 'published'
       },
       order: [['published_at', 'DESC']],
-      attributes: [
-        'id',
-        'title',
-        'slug',
-        'content',
-        'excerpt',
-        'project_id',
-        'status',
-        'upvotes',
-        'downvotes',
-        'published_at',
-        'created_at',
-        'updated_at'
-      ],
+      attributes: {
+        include: [
+          [
+            sequelize.literal('(SELECT COUNT(*) FROM comments WHERE comments.post_id = Post.id)'),
+            'comments_count'
+          ]
+        ]
+      },
       include: [
         {
           model: Project,
@@ -252,11 +260,11 @@ const createPost = async (req, res) => {
   try {
     const { project_id, title, content, excerpt, status } = req.body;
 
-    // Validation
-    if (!project_id || !title || !content) {
+    // Validation 
+    if (!title || !content) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide project_id, title and content'
+        message: 'Please provide title and content'
       });
     }
 
@@ -264,18 +272,20 @@ const createPost = async (req, res) => {
     const slug = title
       .toLowerCase()
       .trim()
-      .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
-      .replace(/\s+/g, '-')          // Replace spaces with -
-      .replace(/-+/g, '-')           // Replace multiple - with single -
-      .replace(/^-+|-+$/g, '');      // Remove leading/trailing -
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
 
     // Check if project exists
-    const project = await Project.findByPk(project_id);
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
+    if (project_id) {
+      const project = await Project.findByPk(project_id);
+      if (!project) {
+        return res.status(404).json({
+          success: false,
+          message: 'Project not found'
+        });
+      }
     }
 
     // Check if slug already exists
@@ -288,7 +298,7 @@ const createPost = async (req, res) => {
     }
 
     const post = await Post.create({
-      project_id,
+      project_id: project_id || null, 
       author_id: req.user.id,
       title,
       slug,

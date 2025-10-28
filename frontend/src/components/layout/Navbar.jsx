@@ -116,13 +116,30 @@ const Navbar = () => {
           {/* Dropdown - Full Width, Centered Content */}
           <div className="fixed top-16 left-0 right-0 bg-black z-40">
             <div className="max-w-4xl mx-auto px-8 py-12">
-              {projects.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 text-xl">No projects yet</p>
-                </div>
-              ) : (
-                <div className="space-y-8 text-center">
-                  {projects.map((project) => (
+              <div className="space-y-8 text-center">
+                {/* All Posts Link - En üstte */}
+                <Link
+                  to="/"
+                  onClick={() => setIsProjectsOpen(false)}
+                  className="block text-white hover:text-gray-400 transition"
+                >
+                  <h3 className="text-3xl font-normal">
+                    All Posts
+                  </h3>
+                </Link>
+
+                {/* Divider */}
+                {projects.length > 0 && (
+                  <hr className="border-gray-800" />
+                )}
+
+                {/* Projects List */}
+                {projects.length === 0 ? (
+                  <div className="py-4">
+                    <p className="text-gray-500 text-lg">No projects yet</p>
+                  </div>
+                ) : (
+                  projects.map((project) => (
                     <Link
                       key={project.id}
                       to={`/project/${project.slug}`}
@@ -133,9 +150,9 @@ const Navbar = () => {
                         {project.name}
                       </h3>
                     </Link>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </>

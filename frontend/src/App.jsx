@@ -41,6 +41,10 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/project/:slug" element={<ProjectPage />} />
               <Route path="/project/:slug/post/:postSlug" element={<PostPage />} />
+              
+              {/* General Feed Post Route (proje bağımsız) */}
+              <Route path="/post/:postSlug" element={<PostPage />} />
+              
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               

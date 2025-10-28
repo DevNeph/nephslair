@@ -530,32 +530,32 @@ const PostPage = () => {
               </button>
             </div>
 
-            {/* Comment Content */}
-            <div className="flex-1 min-w-0">
-              {isDeleted ? (
-                /* Deleted Comment Layout */
-                <>
-                  {/* Collapse button on its own line if there are replies */}
-                  {replyCount > 0 && (
-                    <div className="mb-2">
-                      <button
-                        onClick={() => toggleExpand(comment.id)}
-                        className="text-xs text-gray-500 hover:text-purple-400 transition font-medium"
-                      >
-                        {isExpanded 
-                          ? '[hide replies]'
-                          : `[show ${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}]`
-                        }
-                      </button>
-                    </div>
-                  )}
-                  
-                  {/* Deleted message */}
-                  <p className="text-sm text-gray-500 italic mb-2">
-                    Comment deleted by user
-                  </p>
-                </>
-              ) : (
+              {/* Comment Content */}
+              <div className="flex-1 min-w-0">
+                {isDeleted ? (
+                  /* Deleted Comment Layout - Vertically Centered */
+                  <div className="flex flex-col justify-center min-h-[80px]">
+                    {/* Collapse button on its own line if there are replies */}
+                    {replyCount > 0 && (
+                      <div className="mb-2">
+                        <button
+                          onClick={() => toggleExpand(comment.id)}
+                          className="text-xs text-gray-500 hover:text-purple-400 transition font-medium"
+                        >
+                          {isExpanded 
+                            ? '[hide replies]'
+                            : `[show ${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}]`
+                          }
+                        </button>
+                      </div>
+                    )}
+                    
+                    {/* Deleted message */}
+                    <p className="text-sm text-gray-500 italic">
+                      Comment deleted by user
+                    </p>
+                  </div>
+                ) : (
                 /* Normal Comment Header */
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   {/* Avatar */}

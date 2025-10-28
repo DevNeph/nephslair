@@ -9,12 +9,12 @@ const Post = sequelize.define('Post', {
   },
   project_id: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true,  // ✅ Doğru
     references: {
       model: 'projects',
       key: 'id'
     },
-    onDelete: 'CASCADE'
+    onDelete: 'SET NULL'  // ✅ CASCADE'den SET NULL'a değiştir!
   },
   author_id: {
     type: DataTypes.INTEGER,

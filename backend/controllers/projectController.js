@@ -1,4 +1,4 @@
-const { Project, Post } = require('../models');
+const { Project, Post, Release } = require('../models');
 
 // @desc    Get all projects (Public - only published)
 // @route   GET /api/projects

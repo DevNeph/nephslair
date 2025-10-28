@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const swaggerUi = require('swagger-ui-express');
@@ -14,6 +15,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from downloads directory
+app.use('/downloads', express.static(path.join(__dirname, 'downloads')));
 
 // Swagger Theme
 const theme = new SwaggerTheme();
@@ -53,7 +57,8 @@ app.use('/api/posts', require('./routes/posts'));
 app.use('/api/comments', require('./routes/comments'));
 app.use('/api/votes', require('./routes/votes'));
 app.use('/api/polls', require('./routes/polls'));
-app.use('/api/downloads', require('./routes/downloads'));
+app.use('/api/releases', require('./routes/releases'));
+app.use('/api/upload', require('./routes/upload'));
 app.use('/api/users', require('./routes/users'));
 
 

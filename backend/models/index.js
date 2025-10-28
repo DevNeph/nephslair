@@ -7,7 +7,8 @@ const Vote = require('./Vote');
 const Poll = require('./Poll');
 const PollOption = require('./PollOption');
 const PollVote = require('./PollVote');
-const Download = require('./Download');
+const Release = require('./Release');
+const ReleaseFile = require('./ReleaseFile');
 const CommentVote = require('./commentvote')(sequelize, require('sequelize').DataTypes);
 const CommentHistory = require('./CommentHistory');
 
@@ -45,7 +46,6 @@ CommentVote.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 Comment.hasMany(CommentHistory, { foreignKey: 'comment_id', as: 'history' });
 CommentHistory.belongsTo(Comment, { foreignKey: 'comment_id', as: 'comment' });
 
-
 // Post - Vote relationship
 Post.hasMany(Vote, { foreignKey: 'post_id', as: 'votes' });
 Vote.belongsTo(Post, { foreignKey: 'post_id', as: 'post' });
@@ -70,11 +70,17 @@ PollVote.belongsTo(PollOption, { foreignKey: 'poll_option_id', as: 'option' });
 User.hasMany(PollVote, { foreignKey: 'user_id', as: 'pollVotes' });
 PollVote.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-// Project - Download relationship
-Project.hasMany(Download, { foreignKey: 'project_id', as: 'downloads' });
-Download.belongsTo(Project, { foreignKey: 'project_id', as: 'project' });
+// Project - Release relationship
+Project.hasMany(Release, { foreignKey: 'project_id',  as: 'releases', onDelete: 'CASCADE'});
+Release.belongsTo(Project, { foreignKey: 'project_id', as: 'project' });
 
+// Release - ReleaseFile relationship
+Release.hasMany(ReleaseFile, { foreignKey: 'release_id', as: 'files', onDelete: 'CASCADE'});
+ReleaseFile.belongsTo(Release, { foreignKey: 'release_id', as: 'release' });
 
+// Post - Release relationship
+Post.belongsTo(Release, { foreignKey: 'release_id', as: 'release' });
+Release.hasMany(Post, { foreignKey: 'release_id', as: 'posts' });
 
 // Database sync function
 const syncDatabase = async () => {
@@ -82,8 +88,7 @@ const syncDatabase = async () => {
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully.');
     
-    // Use force: true to drop and recreate tables (ONLY for development!)
-    await sequelize.sync({ force: false }); // Changed from alter to force
+    await sequelize.sync({ force: false });
     console.log('✅ All models synchronized successfully.');
   } catch (error) {
     console.error('❌ Unable to connect to the database:', error);
@@ -100,7 +105,8 @@ module.exports = {
   Poll,
   PollOption,
   PollVote,
-  Download,
+  Release,
+  ReleaseFile,
   CommentVote,
   CommentHistory,
   syncDatabase

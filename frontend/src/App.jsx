@@ -6,6 +6,9 @@ import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import HomePage from './pages/Home/HomePage';
 import ProjectPage from './pages/Project/ProjectPage';
+import ProjectAboutPage from './pages/Project/ProjectAboutPage';
+import ProjectDownloadsPage from './pages/Project/ProjectDownloadsPage';
+import ProjectChangelogsPage from './pages/Project/ProjectChangelogsPage';
 import PostPage from './pages/Post/PostPage';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
@@ -18,6 +21,8 @@ import ManagePosts from './pages/Admin/Posts/ManagePosts';
 import PostForm from './pages/Admin/Posts/PostForm';
 import ManageUsers from './pages/Admin/Users/ManageUsers';
 import ManageComments from './pages/Admin/Comments/ManageComments';
+import ManageReleases from './pages/Admin/Releases/ManageReleases';
+import ReleaseForm from './pages/Admin/Releases/ReleaseForm';
 
 function App() {
   return (
@@ -39,12 +44,18 @@ function App() {
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<HomePage />} />
-              <Route path="/project/:slug" element={<ProjectPage />} />
-              <Route path="/project/:slug/post/:postSlug" element={<PostPage />} />
               
-              {/* General Feed Post Route (proje bağımsız) */}
+              {/* Project Routes */}
+              <Route path="/project/:slug" element={<ProjectPage />} />
+              <Route path="/project/:slug/about" element={<ProjectAboutPage />} />
+              <Route path="/project/:slug/downloads" element={<ProjectDownloadsPage />} />
+              <Route path="/project/:slug/changelogs" element={<ProjectChangelogsPage />} />
+              
+              {/* Post Routes */}
+              <Route path="/project/:slug/post/:postSlug" element={<PostPage />} />
               <Route path="/post/:postSlug" element={<PostPage />} />
               
+              {/* Auth Routes */}
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               
@@ -126,6 +137,32 @@ function App() {
                 element={
                   <AdminRoute>
                     <ManageComments />
+                  </AdminRoute>
+                }
+              />
+
+              {/* Release Management */}
+              <Route
+                path="/admin/releases"
+                element={
+                  <AdminRoute>
+                    <ManageReleases />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/releases/create"
+                element={
+                  <AdminRoute>
+                    <ReleaseForm />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/releases/edit/:id"
+                element={
+                  <AdminRoute>
+                    <ReleaseForm />
                   </AdminRoute>
                 }
               />

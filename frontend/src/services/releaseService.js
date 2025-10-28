@@ -1,0 +1,66 @@
+import api from './api';
+
+// Public endpoints
+export const getReleasesByProject = async (projectSlug) => {
+  const response = await api.get(`/releases/project/${projectSlug}`);
+  return response.data.data;
+};
+
+// Admin endpoints
+export const getAllReleasesAdmin = async () => {
+  const response = await api.get('/releases/admin/all');
+  return response.data.data;
+};
+
+export const getReleasesByProjectIdAdmin = async (projectId) => {
+  const response = await api.get(`/releases/admin/project/${projectId}`);
+  return response.data.data;
+};
+
+export const getReleaseById = async (id) => {
+  const response = await api.get(`/releases/admin/${id}`);
+  return response.data.data;
+};
+
+export const createRelease = async (releaseData) => {
+  const response = await api.post('/releases', releaseData);
+  return response.data;
+};
+
+export const updateRelease = async (id, releaseData) => {
+  const response = await api.put(`/releases/${id}`, releaseData);
+  return response.data;
+};
+
+export const deleteRelease = async (id) => {
+  const response = await api.delete(`/releases/${id}`);
+  return response.data;
+};
+
+export const addFileToRelease = async (releaseId, fileData) => {
+  const response = await api.post(`/releases/${releaseId}/files`, fileData);
+  return response.data;
+};
+
+export const updateReleaseFile = async (fileId, fileData) => {
+  const response = await api.put(`/releases/files/${fileId}`, fileData);
+  return response.data;
+};
+
+export const deleteReleaseFile = async (fileId) => {
+  const response = await api.delete(`/releases/files/${fileId}`);
+  return response.data;
+};
+
+export const incrementDownloadCount = async (fileId) => {
+  const response = await api.post(`/releases/files/${fileId}/download`);
+  return response.data;
+};
+
+export const downloadFile = (fileId) => {
+  const backendUrl = import.meta.env.VITE_API_URL 
+    ? import.meta.env.VITE_API_URL.replace('/api', '') 
+    : 'http://localhost:3001';
+  
+  window.location.href = `${backendUrl}/api/releases/download/${fileId}`;
+};

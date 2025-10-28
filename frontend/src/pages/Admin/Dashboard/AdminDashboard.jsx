@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiUsers, FiFolderPlus, FiFileText, FiMessageSquare } from 'react-icons/fi';
+import { FiUsers, FiFolderPlus, FiFileText, FiMessageSquare, FiPackage } from 'react-icons/fi';
 import api from '../../../services/api';
 
 const AdminDashboard = () => {
@@ -8,7 +8,8 @@ const AdminDashboard = () => {
     users: 0,
     projects: 0,
     posts: 0,
-    comments: 0
+    comments: 0,
+    releases: 0
   });
 
   useEffect(() => {
@@ -17,18 +18,20 @@ const AdminDashboard = () => {
 
   const fetchStats = async () => {
     try {
-      const [usersRes, projectsRes, postsRes, commentsRes] = await Promise.all([
+      const [usersRes, projectsRes, postsRes, commentsRes, releasesRes] = await Promise.all([
         api.get('/users'),
         api.get('/projects'),
         api.get('/posts'),
-        api.get('/comments') 
+        api.get('/comments'),
+        api.get('/releases/admin/all')
       ]);
 
       setStats({
         users: usersRes.data.data?.length || 0,
         projects: projectsRes.data.data?.length || 0,
         posts: postsRes.data.data?.length || 0,
-        comments: commentsRes.data.data?.length || 0 
+        comments: commentsRes.data.data?.length || 0,
+        releases: releasesRes.data.count || 0
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -67,6 +70,14 @@ const AdminDashboard = () => {
       iconColor: 'text-yellow-500',
       textColor: 'text-yellow-500',
       link: '/admin/comments'
+    },
+    { 
+      title: 'Total Releases', 
+      value: stats.releases, 
+      icon: FiPackage, 
+      iconColor: 'text-blue-500',
+      textColor: 'text-blue-500',
+      link: '/admin/releases' 
     }
   ];
 
@@ -79,7 +90,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         {statCards.map((stat) => (
           <Link
             key={stat.title}
@@ -101,7 +112,7 @@ const AdminDashboard = () => {
       {/* Quick Actions */}
       <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
         <h2 className="text-2xl font-bold text-white mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             to="/admin/projects/create"
             className="bg-neutral-800 hover:bg-neutral-700 rounded-lg p-4 text-center transition"
@@ -115,6 +126,13 @@ const AdminDashboard = () => {
           >
             <FiFileText className="text-purple-500 text-2xl mx-auto mb-2" />
             <span className="text-white font-medium">Create Post</span>
+          </Link>
+          <Link
+            to="/admin/releases/create"
+            className="bg-neutral-800 hover:bg-neutral-700 rounded-lg p-4 text-center transition"
+          >
+            <FiPackage className="text-purple-500 text-2xl mx-auto mb-2" />
+            <span className="text-white font-medium">Create Release</span>
           </Link>
           <Link
             to="/admin/users"

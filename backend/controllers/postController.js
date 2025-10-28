@@ -1,4 +1,4 @@
-const { Post, Project, Comment, User, Poll, PollOption, Vote, sequelize } = require('../models');
+const { Post, Project, Comment, User, Poll, PollOption, Vote, Release, sequelize } = require('../models');
 
 // @desc    Get all published posts (for homepage)
 // @route   GET /api/posts
@@ -115,20 +115,29 @@ const getPostsByProject = async (req, res) => {
 const getPostBySlug = async (req, res) => {
   try {
     const post = await Post.findOne({
-      where: {
-        slug: req.params.slug,
-        status: 'published'
-      },
+      where: { slug: req.params.slug },
       include: [
         {
           model: Project,
           as: 'project',
-          attributes: ['id', 'name', 'slug']
+          attributes: ['id', 'name', 'slug', 'description', 'status', 'latest_version'], // ✅ version → latest_version
+          include: [
+            {
+              model: Release,
+              as: 'releases',
+              attributes: ['id', 'version', 'release_date', 'is_published'],
+              where: { is_published: true },
+              required: false,
+              separate: true,
+              order: [['release_date', 'DESC']],
+              limit: 1
+            }
+          ]
         },
         {
           model: User,
           as: 'author',
-          attributes: ['id', 'username']
+          attributes: ['id', 'username', 'email', 'role']
         },
         {
           model: Comment,
@@ -137,22 +146,11 @@ const getPostBySlug = async (req, res) => {
             {
               model: User,
               as: 'user',
-              attributes: ['id', 'username']
+              attributes: ['id', 'username', 'role']
             }
           ],
+          separate: true,
           order: [['created_at', 'DESC']]
-        },
-        {
-          model: Poll,
-          as: 'polls',
-          where: { is_active: true },
-          required: false,
-          include: [
-            {
-              model: PollOption,
-              as: 'options'
-            }
-          ]
         }
       ]
     });
@@ -164,11 +162,19 @@ const getPostBySlug = async (req, res) => {
       });
     }
 
+    if (post.status !== 'published' && (!req.user || req.user.role !== 'admin')) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+
     res.status(200).json({
       success: true,
       data: post
     });
   } catch (error) {
+    console.error('Error fetching post:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',

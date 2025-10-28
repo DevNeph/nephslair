@@ -1,0 +1,8 @@
+# .env dosyaları
+.env
+.env.*
+!.env.example 
+
+
+/downloads/
+!/downloads/.gitkeep

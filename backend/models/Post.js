@@ -72,7 +72,16 @@ const Post = sequelize.define('Post', {
   updated_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
-  }
+  },
+  release_id: {
+  type: DataTypes.INTEGER,
+  allowNull: true,
+  references: {
+    model: 'releases',
+    key: 'id'
+  },
+  onDelete: 'SET NULL'
+}
 }, {
   tableName: 'posts',
   timestamps: false,
@@ -80,7 +89,8 @@ const Post = sequelize.define('Post', {
     beforeUpdate: (post) => {
       post.updated_at = new Date();
     }
-  }
+  },
 });
+
 
 module.exports = Post;

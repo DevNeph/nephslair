@@ -3,6 +3,8 @@ const router = express.Router();
 const {
   getDownloadsByProject,
   getDownload,
+  getAllDownloadsAdmin,
+  getDownloadById,
   createDownload,
   updateDownload,
   incrementDownloadCount,
@@ -31,6 +33,51 @@ const adminAuth = require('../middleware/adminAuth');
  *         description: Project not found
  */
 router.get('/project/:projectSlug', getDownloadsByProject);
+
+/**
+ * @swagger
+ * /downloads/admin/all:
+ *   get:
+ *     summary: Get all downloads (Admin)
+ *     tags: [Downloads]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all downloads
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin only
+ */
+router.get('/admin/all', auth, adminAuth, getAllDownloadsAdmin);
+
+/**
+ * @swagger
+ * /downloads/admin/{id}:
+ *   get:
+ *     summary: Get single download by ID (Admin)
+ *     tags: [Downloads]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Download ID
+ *     responses:
+ *       200:
+ *         description: Download details
+ *       404:
+ *         description: Download not found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin only
+ */
+router.get('/admin/:id', auth, adminAuth, getDownloadById);
 
 /**
  * @swagger
@@ -69,13 +116,13 @@ router.get('/:id', getDownload);
  *             type: object
  *             required:
  *               - project_id
- *               - file_name
+ *               - title
  *               - file_url
  *             properties:
  *               project_id:
  *                 type: integer
  *                 example: 1
- *               file_name:
+ *               title:
  *                 type: string
  *                 example: MyApp-v2.0.1.zip
  *               file_url:
@@ -88,8 +135,12 @@ router.get('/:id', getDownload);
  *                 type: string
  *                 example: Latest stable release with bug fixes
  *               file_size:
+ *                 type: integer
+ *                 example: 25400000
+ *                 description: File size in bytes
+ *               file_type:
  *                 type: string
- *                 example: 25.4 MB
+ *                 example: zip
  *     responses:
  *       201:
  *         description: Download created successfully
@@ -124,7 +175,7 @@ router.post('/', auth, adminAuth, createDownload);
  *           schema:
  *             type: object
  *             properties:
- *               file_name:
+ *               title:
  *                 type: string
  *               file_url:
  *                 type: string
@@ -133,7 +184,11 @@ router.post('/', auth, adminAuth, createDownload);
  *               description:
  *                 type: string
  *               file_size:
+ *                 type: integer
+ *               file_type:
  *                 type: string
+ *               is_active:
+ *                 type: boolean
  *     responses:
  *       200:
  *         description: Download updated successfully
@@ -193,5 +248,27 @@ router.post('/:id/increment', incrementDownloadCount);
  *         description: Forbidden - Admin only
  */
 router.delete('/:id', auth, adminAuth, deleteDownload);
+
+// ... diğer route'lar ...
+
+/**
+ * @swagger
+ * /releases/download/{fileId}:
+ *   get:
+ *     summary: Download release file
+ *     tags: [Releases]
+ *     parameters:
+ *       - in: path
+ *         name: fileId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: File download
+ *       404:
+ *         description: File not found
+ */
+router.get('/download/:fileId', downloadFile);
 
 module.exports = router;

@@ -16,29 +16,45 @@ const Download = sequelize.define('Download', {
     },
     onDelete: 'CASCADE'
   },
-  file_name: {
+  title: {
     type: DataTypes.STRING(255),
-    allowNull: false
-  },
-  file_url: {
-    type: DataTypes.STRING(500),
-    allowNull: false
-  },
-  version: {
-    type: DataTypes.STRING(50),
-    allowNull: true
+    allowNull: false,
+    validate: {
+      notEmpty: true
+    }
   },
   description: {
     type: DataTypes.TEXT,
     allowNull: true
   },
-  file_size: {
+  version: {
     type: DataTypes.STRING(50),
-    allowNull: true 
+    allowNull: true
+  },
+  file_url: {
+    type: DataTypes.STRING(500),
+    allowNull: false,
+    validate: {
+      isUrl: true
+    }
+  },
+  file_size: {
+    type: DataTypes.BIGINT,
+    allowNull: true,
+    comment: 'File size in bytes'
+  },
+  file_type: {
+    type: DataTypes.STRING(50),
+    allowNull: true,
+    comment: 'e.g., zip, exe, pdf'
   },
   download_count: {
     type: DataTypes.INTEGER,
     defaultValue: 0
+  },
+  is_active: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
   },
   created_at: {
     type: DataTypes.DATE,

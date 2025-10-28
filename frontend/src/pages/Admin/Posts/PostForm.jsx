@@ -243,32 +243,19 @@ const PostForm = () => {
             </p>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Status</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="status"
-                  value="draft"
-                  checked={formData.status === 'draft'}
-                  onChange={handleChange}
-                  className="text-purple-600 focus:ring-purple-500"
-                />
-                <span className="text-white">Draft</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="status"
-                  value="published"
-                  checked={formData.status === 'published'}
-                  onChange={handleChange}
-                  className="text-purple-600 focus:ring-purple-500"
-                />
-                <span className="text-white">Published</span>
-              </label>
-            </div>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Status
+            </label>
+            <select
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 appearance-none cursor-pointer"
+            >
+              <option value="draft">Draft (Hidden from public)</option>
+              <option value="published">Published (Visible to everyone)</option>
+            </select>
             <p className="text-gray-500 text-xs mt-1">
               Draft posts are only visible to admins. Published posts are visible to everyone.
             </p>

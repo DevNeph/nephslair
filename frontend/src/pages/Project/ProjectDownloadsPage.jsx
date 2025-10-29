@@ -196,7 +196,7 @@ const handleDownload = async (file) => {
                         {filteredFiles.map((file) => (
                           <div
                             key={file.id}
-                            className="flex items-center justify-between bg-gray-900 border border-gray-800 rounded-lg p-4 hover:border-gray-700 transition"
+                            className="flex items-center justify-between bg-white/5 border border-gray-800 rounded-lg p-4 hover:border-gray-700 transition"
                           >
                             <div className="flex items-center gap-6 flex-1">
                               <div className="flex-1">

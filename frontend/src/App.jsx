@@ -23,6 +23,9 @@ import ManageUsers from './pages/Admin/Users/ManageUsers';
 import ManageComments from './pages/Admin/Comments/ManageComments';
 import ManageReleases from './pages/Admin/Releases/ManageReleases';
 import ReleaseForm from './pages/Admin/Releases/ReleaseForm';
+import ManagePolls from './pages/Admin/Polls/ManagePolls';
+import CreatePoll from './pages/Admin/Polls/CreatePoll';
+import PollDetails from './pages/Admin/Polls/PollDetails';
 
 function App() {
   return (
@@ -163,6 +166,32 @@ function App() {
                 element={
                   <AdminRoute>
                     <ReleaseForm />
+                  </AdminRoute>
+                }
+              />
+
+              {/* Poll Management */}
+              <Route
+                path="/admin/polls"
+                element={
+                  <AdminRoute>
+                    <ManagePolls />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/polls/create"
+                element={
+                  <AdminRoute>
+                    <CreatePoll />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/polls/:id"
+                element={
+                  <AdminRoute>
+                    <PollDetails />
                   </AdminRoute>
                 }
               />

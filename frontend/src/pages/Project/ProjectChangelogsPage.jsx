@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown'; // ✅ React Markdown
-import remarkGfm from 'remark-gfm'; // ✅ GitHub Flavored Markdown
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { getProjectBySlug } from '../../services/projectService';
 import { getReleasesByProject } from '../../services/releaseService';
 import Loading from '../../components/common/Loading';
@@ -16,11 +16,23 @@ const ProjectChangelogsPage = () => {
   const [releases, setReleases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expandedVersions, setExpandedVersions] = useState(new Set([0]));
+  const [expandedVersions, setExpandedVersions] = useState(new Set());
 
   useEffect(() => {
     fetchData();
   }, [slug]);
+
+  useEffect(() => {
+  // /project/myproj/changelogs#v1.2.3  -> "1.2.3" open that version
+  const hash = location.hash;
+  if (hash && hash.startsWith('#v')) {
+    const versionFromHash = decodeURIComponent(hash.slice(2));
+    const idx = releases.findIndex(r => r.version === versionFromHash);
+    if (idx !== -1) {
+      setExpandedVersions(new Set([idx]));
+    }
+  }
+}, [location.hash, releases]);
 
   const fetchData = async () => {
     try {
@@ -123,12 +135,12 @@ const ProjectChangelogsPage = () => {
                   >
                     <div className="flex items-center gap-3">
                       {expandedVersions.has(index) ? (
-                        <FiChevronDown className="text-white" size={20} />
+                        <FiChevronUp className="text-white" size={20} />
                       ) : (
-                        <FiChevronUp className="text-white rotate-180" size={20} />
+                        <FiChevronDown className="text-white" size={20} />
                       )}
                       <span className="text-2xl font-normal text-white">
-                        V {release.version}
+                        {release.version}
                       </span>
                     </div>
                     <div className="flex items-center gap-4">

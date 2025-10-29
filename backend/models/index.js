@@ -1,3 +1,5 @@
+// backend/models/index.js
+
 const sequelize = require('../config/database');
 const User = require('./User');
 const Project = require('./Project');
@@ -12,7 +14,9 @@ const ReleaseFile = require('./ReleaseFile');
 const CommentVote = require('./commentvote')(sequelize, require('sequelize').DataTypes);
 const CommentHistory = require('./CommentHistory');
 
-// Define relationships
+// ==========================================
+// DEFINE RELATIONSHIPS
+// ==========================================
 
 // User - Post relationship
 User.hasMany(Post, { foreignKey: 'author_id', as: 'posts' });
@@ -54,9 +58,17 @@ Vote.belongsTo(Post, { foreignKey: 'post_id', as: 'post' });
 User.hasMany(Vote, { foreignKey: 'user_id', as: 'votes' });
 Vote.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-// Post - Poll relationship
+// ==========================================
+// POLL RELATIONSHIPS - IMPORTANT!
+// ==========================================
+
+// Post - Poll relationship (OPTIONAL - polls can exist without posts)
 Post.hasMany(Poll, { foreignKey: 'post_id', as: 'polls' });
 Poll.belongsTo(Post, { foreignKey: 'post_id', as: 'post' });
+
+// Project - Poll relationship (OPTIONAL - polls can exist without projects)
+Project.hasMany(Poll, { foreignKey: 'project_id', as: 'polls' });
+Poll.belongsTo(Project, { foreignKey: 'project_id', as: 'project' });
 
 // Poll - PollOption relationship
 Poll.hasMany(PollOption, { foreignKey: 'poll_id', as: 'options' });
@@ -70,19 +82,30 @@ PollVote.belongsTo(PollOption, { foreignKey: 'poll_option_id', as: 'option' });
 User.hasMany(PollVote, { foreignKey: 'user_id', as: 'pollVotes' });
 PollVote.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
+// Poll - PollVote relationship (for easier querying)
+Poll.hasMany(PollVote, { foreignKey: 'poll_id', as: 'votes' });
+PollVote.belongsTo(Poll, { foreignKey: 'poll_id', as: 'poll' });
+
+// ==========================================
+// RELEASE RELATIONSHIPS
+// ==========================================
+
 // Project - Release relationship
-Project.hasMany(Release, { foreignKey: 'project_id',  as: 'releases', onDelete: 'CASCADE'});
+Project.hasMany(Release, { foreignKey: 'project_id', as: 'releases', onDelete: 'CASCADE' });
 Release.belongsTo(Project, { foreignKey: 'project_id', as: 'project' });
 
 // Release - ReleaseFile relationship
-Release.hasMany(ReleaseFile, { foreignKey: 'release_id', as: 'files', onDelete: 'CASCADE'});
+Release.hasMany(ReleaseFile, { foreignKey: 'release_id', as: 'files', onDelete: 'CASCADE' });
 ReleaseFile.belongsTo(Release, { foreignKey: 'release_id', as: 'release' });
 
 // Post - Release relationship
 Post.belongsTo(Release, { foreignKey: 'release_id', as: 'release' });
 Release.hasMany(Post, { foreignKey: 'release_id', as: 'posts' });
 
-// Database sync function
+// ==========================================
+// DATABASE SYNC
+// ==========================================
+
 const syncDatabase = async () => {
   try {
     await sequelize.authenticate();

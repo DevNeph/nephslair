@@ -1,4 +1,4 @@
-const { Poll, PollOption, PollVote, Post, User } = require('../models');
+const { Poll, PollOption, PollVote, Post, User, Project } = require('../models');
 const sequelize = require('../config/database');
 
 // @desc    Get poll with options and vote counts
@@ -36,6 +36,92 @@ const getPoll = async (req, res) => {
   }
 };
 
+// @desc    Get polls by project
+// @route   GET /api/polls/project/:projectIdOrSlug
+// @access  Public
+const getPollsByProject = async (req, res) => {
+  try {
+    const { projectIdOrSlug } = req.params;
+    
+    // Try to find project by ID or slug
+    let project;
+    if (isNaN(projectIdOrSlug)) {
+      // It's a slug
+      project = await Project.findOne({ where: { slug: projectIdOrSlug } });
+    } else {
+      // It's an ID
+      project = await Project.findByPk(projectIdOrSlug);
+    }
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found'
+      });
+    }
+
+    const polls = await Poll.findAll({
+      where: {
+        project_id: project.id,
+        is_active: true
+      },
+      include: [
+        {
+          model: PollOption,
+          as: 'options',
+          attributes: ['id', 'option_text', 'votes_count']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.status(200).json({
+      success: true,
+      data: polls
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get polls by post
+// @route   GET /api/polls/post/:postId
+// @access  Public
+const getPollsByPost = async (req, res) => {
+  try {
+    const polls = await Poll.findAll({
+      where: {
+        post_id: req.params.postId,
+        placement_type: ['post', 'both'],
+        is_active: true
+      },
+      include: [
+        {
+          model: PollOption,
+          as: 'options',
+          attributes: ['id', 'option_text', 'votes_count']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.status(200).json({
+      success: true,
+      data: polls
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Create poll with options
 // @route   POST /api/polls
 // @access  Private/Admin
@@ -43,32 +129,59 @@ const createPoll = async (req, res) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const { post_id, question, options } = req.body;
+    const { project_id, post_id, question, options, placement_type, is_active, end_date } = req.body;
 
     // Validation
-    if (!post_id || !question || !options || !Array.isArray(options) || options.length < 2) {
+    if (!question || !options || !Array.isArray(options) || options.length < 2) {
       await transaction.rollback();
       return res.status(400).json({
         success: false,
-        message: 'Please provide post_id, question and at least 2 options'
+        message: 'Please provide question and at least 2 options'
       });
     }
 
-    // Check if post exists
-    const post = await Post.findByPk(post_id);
-    if (!post) {
+    // Validate placement type
+    const validPlacements = ['project', 'post', 'both', 'standalone'];
+    if (placement_type && !validPlacements.includes(placement_type)) {
       await transaction.rollback();
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
-        message: 'Post not found'
+        message: 'Invalid placement type'
       });
+    }
+
+    // Check if project exists (if provided)
+    if (project_id) {
+      const project = await Project.findByPk(project_id);
+      if (!project) {
+        await transaction.rollback();
+        return res.status(404).json({
+          success: false,
+          message: 'Project not found'
+        });
+      }
+    }
+
+    // Check if post exists (if provided)
+    if (post_id) {
+      const post = await Post.findByPk(post_id);
+      if (!post) {
+        await transaction.rollback();
+        return res.status(404).json({
+          success: false,
+          message: 'Post not found'
+        });
+      }
     }
 
     // Create poll
     const poll = await Poll.create({
-      post_id,
+      project_id: project_id || null,
+      post_id: post_id || null,
       question,
-      is_active: true
+      placement_type: placement_type || 'standalone',
+      is_active: is_active !== undefined ? is_active : true,
+      end_date: end_date || null
     }, { transaction });
 
     // Create poll options
@@ -102,7 +215,7 @@ const createPoll = async (req, res) => {
   }
 };
 
-// @desc    Vote on poll
+// @desc    Vote on poll (with toggle functionality)
 // @route   POST /api/polls/:id/vote
 // @access  Private
 const votePoll = async (req, res) => {
@@ -157,12 +270,20 @@ const votePoll = async (req, res) => {
     });
 
     if (existingVote) {
-      // If voting for same option, return error
+      // If voting for same option, REMOVE vote (toggle)
       if (existingVote.poll_option_id === poll_option_id) {
-        await transaction.rollback();
-        return res.status(400).json({
-          success: false,
-          message: 'You have already voted for this option'
+        await existingVote.destroy({ transaction });
+
+        // Decrease vote count
+        option.votes_count = Math.max(0, option.votes_count - 1);
+        await option.save({ transaction });
+
+        await transaction.commit();
+
+        return res.status(200).json({
+          success: true,
+          message: 'Vote removed',
+          data: { poll_option_id: null }
         });
       }
 
@@ -245,6 +366,87 @@ const getMyPollVote = async (req, res) => {
   }
 };
 
+// @desc    Get all polls (Admin)
+// @route   GET /api/polls/admin/all
+// @access  Private/Admin
+const getAllPolls = async (req, res) => {
+  try {
+    const polls = await Poll.findAll({
+      include: [
+        {
+          model: PollOption,
+          as: 'options',
+          attributes: ['id', 'option_text', 'votes_count']
+        },
+        {
+          model: Post,
+          as: 'post',
+          attributes: ['id', 'title'],
+          required: false
+        },
+        {
+          model: Project,
+          as: 'project',
+          attributes: ['id', 'name'],
+          required: false
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.status(200).json({
+      success: true,
+      data: polls
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Toggle poll active status
+// @route   PATCH /api/polls/:id/toggle
+// @access  Private/Admin
+const togglePollStatus = async (req, res) => {
+  try {
+    const { is_active } = req.body;
+    
+    const poll = await Poll.findByPk(req.params.id);
+
+    if (!poll) {
+      return res.status(404).json({
+        success: false,
+        message: 'Poll not found'
+      });
+    }
+
+    // Cannot reactivate finalized polls
+    if (poll.is_finalized && is_active) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot reactivate a finalized poll'
+      });
+    }
+
+    poll.is_active = is_active;
+    await poll.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Poll ${is_active ? 'activated' : 'deactivated'} successfully`,
+      data: poll
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
 // @desc    Delete poll
 // @route   DELETE /api/polls/:id
 // @access  Private/Admin
@@ -269,15 +471,94 @@ const deletePoll = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error',
-        error: error.message
-        });
-    }
-    };
+      error: error.message
+    });
+  }
+};
 
-    module.exports = {
-    getPoll,
-    createPoll,
-    votePoll,
-    getMyPollVote,
-    deletePoll
-    };
+// @desc    Get standalone polls (for homepage)
+// @route   GET /api/polls/standalone
+// @access  Public
+const getStandalonePolls = async (req, res) => {
+  try {
+    const polls = await Poll.findAll({
+      where: {
+        placement_type: 'standalone',
+        is_active: true
+      },
+      include: [
+        {
+          model: PollOption,
+          as: 'options',
+          attributes: ['id', 'option_text', 'votes_count']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.status(200).json({
+      success: true,
+      data: polls
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Finalize poll (cannot be reopened)
+// @route   PATCH /api/polls/:id/finalize
+// @access  Private/Admin
+const finalizePoll = async (req, res) => {
+  try {
+    const poll = await Poll.findByPk(req.params.id);
+
+    if (!poll) {
+      return res.status(404).json({
+        success: false,
+        message: 'Poll not found'
+      });
+    }
+
+    if (poll.is_finalized) {
+      return res.status(400).json({
+        success: false,
+        message: 'Poll is already finalized'
+      });
+    }
+
+    poll.is_finalized = true;
+    poll.is_active = false;
+    poll.finalized_at = new Date();
+    await poll.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Poll finalized successfully',
+      data: poll
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+module.exports = {
+  getPoll,
+  getPollsByProject,
+  getPollsByPost,
+  getStandalonePolls,
+  createPoll,
+  votePoll,
+  getMyPollVote,
+  getAllPolls,
+  togglePollStatus,
+  finalizePoll,
+  deletePoll
+};

@@ -2,13 +2,89 @@ const express = require('express');
 const router = express.Router();
 const {
   getPoll,
+  getPollsByProject,
+  getPollsByPost,
+  getStandalonePolls,
   createPoll,
   votePoll,
   getMyPollVote,
+  getAllPolls,
+  togglePollStatus,
+  finalizePoll,
   deletePoll
 } = require('../controllers/pollController');
 const auth = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
+
+/**
+ * @swagger
+ * /polls/admin/all:
+ *   get:
+ *     summary: Get all polls (Admin)
+ *     tags: [Polls]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of all polls
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin only
+ */
+router.get('/admin/all', auth, adminAuth, getAllPolls);
+
+/**
+ * @swagger
+ * /polls/standalone:
+ *   get:
+ *     summary: Get standalone polls (for homepage)
+ *     tags: [Polls]
+ *     responses:
+ *       200:
+ *         description: List of standalone polls
+ */
+router.get('/standalone', getStandalonePolls);
+
+/**
+ * @swagger
+ * /polls/project/{projectIdOrSlug}:
+ *   get:
+ *     summary: Get polls by project (ID or slug)
+ *     tags: [Polls]
+ *     parameters:
+ *       - in: path
+ *         name: projectIdOrSlug
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Project ID or slug
+ *     responses:
+ *       200:
+ *         description: List of polls for the project
+ *       404:
+ *         description: Project not found
+ */
+router.get('/project/:projectIdOrSlug', getPollsByProject);
+
+/**
+ * @swagger
+ * /polls/post/{postId}:
+ *   get:
+ *     summary: Get polls by post
+ *     tags: [Polls]
+ *     parameters:
+ *       - in: path
+ *         name: postId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Post ID
+ *     responses:
+ *       200:
+ *         description: List of polls for the post
+ */
+router.get('/post/:postId', getPollsByPost);
 
 /**
  * @swagger
@@ -46,16 +122,25 @@ router.get('/:id', getPoll);
  *           schema:
  *             type: object
  *             required:
- *               - post_id
  *               - question
  *               - options
  *             properties:
+ *               project_id:
+ *                 type: integer
+ *                 example: 1
  *               post_id:
  *                 type: integer
  *                 example: 1
  *               question:
  *                 type: string
  *                 example: What's your favorite feature?
+ *               placement_type:
+ *                 type: string
+ *                 enum: [project, post, both, standalone]
+ *                 example: standalone
+ *               is_active:
+ *                 type: boolean
+ *                 example: true
  *               options:
  *                 type: array
  *                 items:
@@ -137,6 +222,45 @@ router.get('/:id/my-vote', auth, getMyPollVote);
 
 /**
  * @swagger
+ * /polls/{id}/toggle:
+ *   patch:
+ *     summary: Toggle poll active status
+ *     tags: [Polls]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Poll ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - is_active
+ *             properties:
+ *               is_active:
+ *                 type: boolean
+ *                 example: true
+ *     responses:
+ *       200:
+ *         description: Poll status updated successfully
+ *       404:
+ *         description: Poll not found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin only
+ */
+router.patch('/:id/toggle', auth, adminAuth, togglePollStatus);
+
+/**
+ * @swagger
  * /polls/{id}:
  *   delete:
  *     summary: Delete poll
@@ -161,5 +285,34 @@ router.get('/:id/my-vote', auth, getMyPollVote);
  *         description: Forbidden - Admin only
  */
 router.delete('/:id', auth, adminAuth, deletePoll);
+
+/**
+ * @swagger
+ * /polls/{id}/finalize:
+ *   patch:
+ *     summary: Finalize poll (cannot be reopened)
+ *     tags: [Polls]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Poll ID
+ *     responses:
+ *       200:
+ *         description: Poll finalized successfully
+ *       400:
+ *         description: Poll is already finalized
+ *       404:
+ *         description: Poll not found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - Admin only
+ */
+router.patch('/:id/finalize', auth, adminAuth, finalizePoll);
 
 module.exports = router;

@@ -3,15 +3,18 @@ import { useParams, Link, useLocation } from 'react-router-dom';
 import { getProjectBySlug } from '../../services/projectService';
 import { getPostsByProject } from '../../services/postService';
 import PostCard from '../../components/common/PostCard';
+import PollWidget from '../../components/common/PollWidget';
 import Loading from '../../components/common/Loading';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import { formatDate } from '../../utils/helpers';
+import api from '../../services/api';
 
 const ProjectPage = () => {
   const { slug } = useParams();
   const location = useLocation();
   const [project, setProject] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [polls, setPolls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -31,10 +34,25 @@ const ProjectPage = () => {
       
       setProject(projectData);
       setPosts(postsData);
+
+      // Fetch polls for this project
+      if (projectData?.id) {
+        fetchPolls(projectData.id);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Error loading project');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPolls = async (projectId) => {
+    try {
+      const response = await api.get(`/polls/project/${projectId}`);
+      setPolls(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching polls:', error);
+      // Don't show error to user, just log it
     }
   };
 
@@ -55,9 +73,9 @@ const ProjectPage = () => {
       <div className="flex gap-8">
         {/* Left Sidebar */}
         <aside className="w-64 flex-shrink-0">
-          <div className="sticky top-24">
+          <div className="sticky top-24 space-y-6">
             {/* Project Info Card */}
-            <div className="bg-black border border-gray-700 rounded-lg p-6 mb-6">
+            <div className="bg-black border border-gray-700 rounded-lg p-6">
               <h2 className="text-xl font-normal text-white mb-4">
                 {project.name}
               </h2>
@@ -91,6 +109,15 @@ const ProjectPage = () => {
                 </Link>
               ))}
             </nav>
+
+            {/* Polls Section */}
+            {polls.length > 0 && (
+              <div className="space-y-4">
+                {polls.map((poll) => (
+                  <PollWidget key={poll.id} pollId={poll.id} />
+                ))}
+              </div>
+            )}
           </div>
         </aside>
 

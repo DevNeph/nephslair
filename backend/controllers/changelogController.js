@@ -12,10 +12,7 @@ const getChangelogsByProject = async (req, res) => {
     });
 
     if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
+      return error(res, 'Project not found', 404);
     }
 
     const changelogs = await Changelog.findAll({
@@ -24,17 +21,9 @@ const getChangelogsByProject = async (req, res) => {
       attributes: ['id', 'version', 'explanation', 'release_date', 'content', 'created_at']
     });
 
-    res.status(200).json({
-      success: true,
-      count: changelogs.length,
-      data: changelogs
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, changelogs, undefined, 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -54,17 +43,9 @@ const getAllChangelogsAdmin = async (req, res) => {
       ]
     });
 
-    res.status(200).json({
-      success: true,
-      count: changelogs.length,
-      data: changelogs
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, changelogs, undefined, 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -84,22 +65,12 @@ const getChangelogById = async (req, res) => {
     });
 
     if (!changelog) {
-      return res.status(404).json({
-        success: false,
-        message: 'Changelog not found'
-      });
+      return error(res, 'Changelog not found', 404);
     }
 
-    res.status(200).json({
-      success: true,
-      data: changelog
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, changelog);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -156,24 +127,14 @@ const deleteChangelog = async (req, res) => {
     const changelog = await Changelog.findByPk(req.params.id);
 
     if (!changelog) {
-      return res.status(404).json({
-        success: false,
-        message: 'Changelog not found'
-      });
+      return error(res, 'Changelog not found', 404);
     }
 
     await changelog.destroy();
 
-    res.status(200).json({
-      success: true,
-      message: 'Changelog deleted successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'Changelog deleted successfully', 204);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

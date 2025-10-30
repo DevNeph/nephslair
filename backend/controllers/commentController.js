@@ -30,17 +30,9 @@ const getAllComments = async (req, res) => {
       ]
     });
 
-    res.status(200).json({
-      success: true,
-      count: comments.length,
-      data: comments
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, comments, undefined, 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -61,17 +53,9 @@ const getCommentsByPost = async (req, res) => {
       ]
     });
 
-    res.status(200).json({
-      success: true,
-      count: comments.length,
-      data: comments
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, comments, undefined, 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -133,10 +117,7 @@ const getCommentHistory = async (req, res) => {
     const comment = await Comment.findByPk(req.params.id);
 
     if (!comment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Comment not found'
-      });
+      return error(res, 'Comment not found', 404);
     }
 
     const history = await CommentHistory.findAll({
@@ -144,19 +125,12 @@ const getCommentHistory = async (req, res) => {
       order: [['edited_at', 'DESC']]
     });
 
-    res.status(200).json({
-      success: true,
-      data: {
-        current: comment.content,
-        history: history
-      }
+    return success(res, {
+      current: comment.content,
+      history: history
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -169,18 +143,12 @@ const deleteComment = async (req, res) => {
     const comment = await Comment.findByPk(req.params.id);
 
     if (!comment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Comment not found'
-      });
+      return error(res, 'Comment not found', 404);
     }
 
     // Check if user owns the comment or is admin
     if (comment.user_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to delete this comment'
-      });
+      return error(res, 'Not authorized to delete this comment', 403);
     }
 
     // Soft delete - sadece is_deleted flag'ini set et
@@ -188,16 +156,9 @@ const deleteComment = async (req, res) => {
     comment.content = '[deleted]';
     await comment.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'Comment deleted successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'Comment deleted successfully', 204);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

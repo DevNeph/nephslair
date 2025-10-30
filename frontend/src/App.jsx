@@ -5,6 +5,7 @@ import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
 import SeoHead from './components/common/SeoHead';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import { refreshSettingsCache } from './services/api';
 import HomePage from './pages/Home/HomePage';
 import ProjectPage from './pages/Project/ProjectPage';
@@ -56,12 +57,13 @@ function MaintenanceGate({ children }) {
 function App() {
   useEffect(() => { refreshSettingsCache(); }, []);
   return (
-    <AuthProvider>
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <MaintenanceGate>
-          <div className="min-h-screen bg-black flex flex-col">
-            <Navbar />
-            <SeoHead />
+    <ErrorBoundary>
+      <AuthProvider>
+        <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <MaintenanceGate>
+            <div className="min-h-screen bg-black flex flex-col">
+              <Navbar />
+              <SeoHead />
             <Toaster 
               position="top-right"
               toastOptions={{
@@ -251,6 +253,7 @@ function App() {
         </MaintenanceGate>
       </Router>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

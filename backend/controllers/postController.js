@@ -36,17 +36,9 @@ const getAllPosts = async (req, res) => {
       ]
     });
 
-    res.status(200).json({
-      success: true,
-      count: posts.length,
-      data: posts
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, posts, undefined, 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -60,10 +52,7 @@ const getPostsByProject = async (req, res) => {
     });
 
     if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
+      return error(res, 'Project not found', 404);
     }
 
     const posts = await Post.findAll({
@@ -94,17 +83,9 @@ const getPostsByProject = async (req, res) => {
       ]
     });
 
-    res.status(200).json({
-      success: true,
-      count: posts.length,
-      data: posts
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, posts, undefined, 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -194,17 +175,11 @@ const getPostBySlug = async (req, res) => {
     });
 
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
+      return error(res, 'Post not found', 404);
     }
 
     if (post.status !== 'published' && (!req.user || req.user.role !== 'admin')) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied'
-      });
+      return error(res, 'Access denied', 403);
     }
 
     // ✅ Format poll options
@@ -229,17 +204,10 @@ const getPostBySlug = async (req, res) => {
       );
     }
 
-    res.status(200).json({
-      success: true,
-      data: postData
-    });
-  } catch (error) {
-    console.error('❌ Error in getPostBySlug:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, postData);
+  } catch (err) {
+    console.error('❌ Error in getPostBySlug:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -264,22 +232,12 @@ const getPostById = async (req, res) => {
     });
 
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
+      return error(res, 'Post not found', 404);
     }
 
-    res.status(200).json({
-      success: true,
-      data: post
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, post);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -305,17 +263,9 @@ const getAllPostsAdmin = async (req, res) => {
       attributes: ['id', 'title', 'slug', 'content', 'excerpt', 'project_id', 'status', 'upvotes', 'downvotes', 'published_at', 'created_at', 'updated_at']
     });
 
-    res.status(200).json({
-      success: true,
-      count: posts.length,
-      data: posts
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, posts, undefined, 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -396,10 +346,7 @@ const updatePostStatus = async (req, res) => {
     const post = await Post.findByPk(req.params.id);
     
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
+      return error(res, 'Post not found', 404);
     }
     
     post.status = status;
@@ -409,17 +356,9 @@ const updatePostStatus = async (req, res) => {
     
     await post.save();
     
-    res.status(200).json({
-      success: true,
-      message: 'Post status updated',
-      data: post
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, post, 'Post status updated', 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -431,24 +370,14 @@ const deletePost = async (req, res) => {
     const post = await Post.findByPk(req.params.id);
 
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
+      return error(res, 'Post not found', 404);
     }
 
     await post.destroy();
 
-    res.status(200).json({
-      success: true,
-      message: 'Post deleted successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'Post deleted successfully', 204);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -462,18 +391,12 @@ const votePost = async (req, res) => {
     const userId = req.user.id;
 
     if (!vote_type || !['upvote', 'downvote'].includes(vote_type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide valid vote_type (upvote or downvote)'
-      });
+      return error(res, 'Please provide valid vote_type (upvote or downvote)', 400);
     }
 
     const post = await Post.findByPk(postId);
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
+      return error(res, 'Post not found', 404);
     }
 
     let vote = await Vote.findOne({
@@ -520,20 +443,13 @@ const votePost = async (req, res) => {
 
     await post.save();
 
-    res.status(200).json({
-      success: true,
-      data: {
-        upvotes: post.upvotes,
-        downvotes: post.downvotes
-      }
+    return success(res, {
+      upvotes: post.upvotes,
+      downvotes: post.downvotes
     });
-  } catch (error) {
-    console.error('Error voting on post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+  } catch (err) {
+    console.error('Error voting on post:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -551,18 +467,12 @@ const addPollToPost = async (req, res) => {
 
     const post = await Post.findByPk(postId);
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
+      return error(res, 'Post not found', 404);
     }
 
     const poll = await Poll.findByPk(pollId);
     if (!poll) {
-      return res.status(404).json({
-        success: false,
-        message: 'Poll not found'
-      });
+      return error(res, 'Poll not found', 404);
     }
 
     // Check if already exists
@@ -571,10 +481,7 @@ const addPollToPost = async (req, res) => {
     });
 
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'Poll already attached to this post'
-      });
+      return error(res, 'Poll already attached to this post', 400);
     }
 
     await PostPoll.create({
@@ -583,17 +490,10 @@ const addPollToPost = async (req, res) => {
       display_order: display_order || 0
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Poll added to post successfully'
-    });
-  } catch (error) {
-    console.error('Error adding poll to post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'Poll added to post successfully', 201);
+  } catch (err) {
+    console.error('Error adding poll to post:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -609,25 +509,15 @@ const removePollFromPost = async (req, res) => {
     });
 
     if (!postPoll) {
-      return res.status(404).json({
-        success: false,
-        message: 'Poll not attached to this post'
-      });
+      return error(res, 'Poll not attached to this post', 404);
     }
 
     await postPoll.destroy();
 
-    res.status(200).json({
-      success: true,
-      message: 'Poll removed from post successfully'
-    });
-  } catch (error) {
-    console.error('Error removing poll from post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'Poll removed from post successfully', 204);
+  } catch (err) {
+    console.error('Error removing poll from post:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -642,18 +532,12 @@ const addDownloadToPost = async (req, res) => {
 
     const post = await Post.findByPk(postId);
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
+      return error(res, 'Post not found', 404);
     }
 
     const file = await ReleaseFile.findByPk(fileId);
     if (!file) {
-      return res.status(404).json({
-        success: false,
-        message: 'Release file not found'
-      });
+      return error(res, 'Release file not found', 404);
     }
 
     // Check if already exists
@@ -662,10 +546,7 @@ const addDownloadToPost = async (req, res) => {
     });
 
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'File already attached to this post'
-      });
+      return error(res, 'File already attached to this post', 400);
     }
 
     await PostDownload.create({
@@ -674,17 +555,10 @@ const addDownloadToPost = async (req, res) => {
       display_order: display_order || 0
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Download file added to post successfully'
-    });
-  } catch (error) {
-    console.error('Error adding download to post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'Download file added to post successfully', 201);
+  } catch (err) {
+    console.error('Error adding download to post:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -700,25 +574,15 @@ const removeDownloadFromPost = async (req, res) => {
     });
 
     if (!postDownload) {
-      return res.status(404).json({
-        success: false,
-        message: 'File not attached to this post'
-      });
+      return error(res, 'File not attached to this post', 404);
     }
 
     await postDownload.destroy();
 
-    res.status(200).json({
-      success: true,
-      message: 'Download file removed from post successfully'
-    });
-  } catch (error) {
-    console.error('Error removing download from post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'Download file removed from post successfully', 204);
+  } catch (err) {
+    console.error('Error removing download from post:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -732,18 +596,12 @@ const addReleaseToPost = async (req, res) => {
 
     const post = await Post.findByPk(postId);
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
+      return error(res, 'Post not found', 404);
     }
 
     const release = await Release.findByPk(releaseId);
     if (!release) {
-      return res.status(404).json({
-        success: false,
-        message: 'Release not found'
-      });
+      return error(res, 'Release not found', 404);
     }
 
     const { PostRelease } = require('../models');
@@ -752,10 +610,7 @@ const addReleaseToPost = async (req, res) => {
     });
 
     if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'Release already attached to this post'
-      });
+      return error(res, 'Release already attached to this post', 400);
     }
 
     await PostRelease.create({
@@ -764,17 +619,10 @@ const addReleaseToPost = async (req, res) => {
       display_order: display_order || 0
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Release added to post successfully'
-    });
-  } catch (error) {
-    console.error('Error adding release to post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'Release added to post successfully', 201);
+  } catch (err) {
+    console.error('Error adding release to post:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -791,25 +639,15 @@ const removeReleaseFromPost = async (req, res) => {
     });
 
     if (!postRelease) {
-      return res.status(404).json({
-        success: false,
-        message: 'Release not attached to this post'
-      });
+      return error(res, 'Release not attached to this post', 404);
     }
 
     await postRelease.destroy();
 
-    res.status(200).json({
-      success: true,
-      message: 'Release removed from post successfully'
-    });
-  } catch (error) {
-    console.error('Error removing release from post:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'Release removed from post successfully', 204);
+  } catch (err) {
+    console.error('Error removing release from post:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

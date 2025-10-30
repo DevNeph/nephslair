@@ -55,18 +55,10 @@ const getAllReleases = async (req, res) => {
       order: [['release_date', 'DESC']]
     });
 
-    res.status(200).json({
-      success: true,
-      count: releases.length,
-      data: releases
-    });
-  } catch (error) {
-    console.error('Error fetching releases:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, releases, undefined, 200);
+  } catch (err) {
+    console.error('Error fetching releases:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -80,10 +72,7 @@ const getReleasesByProject = async (req, res) => {
     });
 
     if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
+      return error(res, 'Project not found', 404);
     }
 
     const releases = await Release.findAll({
@@ -102,17 +91,9 @@ const getReleasesByProject = async (req, res) => {
       attributes: ['id', 'version', 'release_notes', 'release_date', 'created_at']
     });
 
-    res.status(200).json({
-      success: true,
-      count: releases.length,
-      data: releases
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, releases, undefined, 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -136,17 +117,9 @@ const getAllReleasesAdmin = async (req, res) => {
       ]
     });
 
-    res.status(200).json({
-      success: true,
-      count: releases.length,
-      data: releases
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, releases, undefined, 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -166,17 +139,9 @@ const getReleasesByProjectIdAdmin = async (req, res) => {
       order: [['release_date', 'DESC']]
     });
 
-    res.status(200).json({
-      success: true,
-      count: releases.length,
-      data: releases
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, releases, undefined, 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -200,22 +165,12 @@ const getReleaseById = async (req, res) => {
     });
 
     if (!release) {
-      return res.status(404).json({
-        success: false,
-        message: 'Release not found'
-      });
+      return error(res, 'Release not found', 404);
     }
 
-    res.status(200).json({
-      success: true,
-      data: release
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, release);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -296,7 +251,7 @@ const deleteRelease = async (req, res) => {
     await release.destroy();
     await updateProjectLatestVersion(projectId);
 
-    return success(res, null, 'Release and associated files deleted successfully', 200);
+    return success(res, null, 'Release and associated files deleted successfully', 204);
   } catch (err) {
     return error(res, 'Server error', 500, err.message);
   }
@@ -310,18 +265,12 @@ const addFileToRelease = async (req, res) => {
     const { platform, file_name, file_url, file_size, file_type } = req.body;
 
     if (!platform || !file_name || !file_url) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide platform, file_name and file_url'
-      });
+      return error(res, 'Please provide platform, file_name and file_url', 400);
     }
 
     const release = await Release.findByPk(req.params.id);
     if (!release) {
-      return res.status(404).json({
-        success: false,
-        message: 'Release not found'
-      });
+      return error(res, 'Release not found', 404);
     }
 
     const file = await ReleaseFile.create({
@@ -333,17 +282,9 @@ const addFileToRelease = async (req, res) => {
       file_type
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'File added to release successfully',
-      data: file
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, file, 'File added to release successfully', 201);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -401,7 +342,7 @@ const deleteReleaseFile = async (req, res) => {
     }
 
     await file.destroy();
-    return success(res, null, 'File deleted successfully', 200);
+    return success(res, null, 'File deleted successfully', 204);
   } catch (err) {
     return error(res, 'Server error', 500, err.message);
   }
@@ -415,27 +356,17 @@ const incrementDownloadCount = async (req, res) => {
     const file = await ReleaseFile.findByPk(req.params.fileId);
 
     if (!file) {
-      return res.status(404).json({
-        success: false,
-        message: 'File not found'
-      });
+      return error(res, 'File not found', 404);
     }
 
     file.download_count += 1;
     await file.save();
 
-    res.status(200).json({
-      success: true,
-      data: {
-        download_count: file.download_count
-      }
+    return success(res, {
+      download_count: file.download_count
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -450,10 +381,7 @@ const downloadFile = async (req, res) => {
     const file = await ReleaseFile.findByPk(fileId);
 
     if (!file) {
-      return res.status(404).json({
-        success: false,
-        message: 'File not found'
-      });
+      return error(res, 'File not found', 404);
     }
 
     // Increment download count
@@ -465,10 +393,7 @@ const downloadFile = async (req, res) => {
 
     // Check if file exists
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
-        success: false,
-        message: 'File not found on server'
-      });
+      return error(res, 'File not found on server', 404);
     }
 
     // Set headers to force download
@@ -480,20 +405,15 @@ const downloadFile = async (req, res) => {
       if (err) {
         console.error('Error downloading file:', err);
         if (!res.headersSent) {
-          res.status(500).json({
-            success: false,
-            message: 'Error downloading file'
-          });
+          return error(res, 'Error downloading file', 500);
         }
       }
     });
-  } catch (error) {
-    console.error('Error in downloadFile:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+  } catch (err) {
+    console.error('Error in downloadFile:', err);
+    if (!res.headersSent) {
+      return error(res, 'Server error', 500, err.message);
+    }
   }
 };
 

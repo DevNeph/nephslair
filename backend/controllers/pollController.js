@@ -66,10 +66,7 @@ const getPoll = async (req, res) => {
     });
 
     if (!poll) {
-      return res.status(404).json({
-        success: false,
-        message: 'Poll not found'
-      });
+      return error(res, 'Poll not found', 404);
     }
 
     // ✅ Auto-finalize if expired
@@ -82,21 +79,14 @@ const getPoll = async (req, res) => {
 
     const formattedOptions = await formatPollOptions(poll.options, userId);
 
-    res.status(200).json({
-      success: true,
-      data: {
-        ...poll.toJSON(),
-        options: formattedOptions,
-        is_closed: isClosed
-      }
+    return success(res, {
+      ...poll.toJSON(),
+      options: formattedOptions,
+      is_closed: isClosed
     });
-  } catch (error) {
-    console.error('Error getting poll:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+  } catch (err) {
+    console.error('Error getting poll:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -116,10 +106,7 @@ const getPollsByProject = async (req, res) => {
     }
 
     if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
+      return error(res, 'Project not found', 404);
     }
 
     let polls = await Poll.findAll({
@@ -155,16 +142,9 @@ const getPollsByProject = async (req, res) => {
       })
     );
 
-    res.status(200).json({
-      success: true,
-      data: formattedPolls
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, formattedPolls);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -208,16 +188,9 @@ const getPollsByPost = async (req, res) => {
       })
     );
 
-    res.status(200).json({
-      success: true,
-      data: formattedPolls
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, formattedPolls);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -261,16 +234,9 @@ const getStandalonePolls = async (req, res) => {
       })
     );
 
-    res.status(200).json({
-      success: true,
-      data: formattedPolls
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, formattedPolls);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -304,16 +270,9 @@ const getAvailablePolls = async (req, res) => {
       }))
     }));
 
-    res.status(200).json({
-      success: true,
-      data: formattedPolls
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, formattedPolls);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -355,16 +314,9 @@ const getAllPolls = async (req, res) => {
       }))
     }));
 
-    res.status(200).json({
-      success: true,
-      data: formattedPolls
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, formattedPolls);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -520,22 +472,12 @@ const getMyPollVote = async (req, res) => {
     });
 
     if (!vote) {
-      return res.status(200).json({
-        success: true,
-        data: { voted: false, poll_option_id: null }
-      });
+      return success(res, { voted: false, poll_option_id: null });
     }
 
-    res.status(200).json({
-      success: true,
-      data: { voted: true, poll_option_id: vote.poll_option_id }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, { voted: true, poll_option_id: vote.poll_option_id });
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -549,33 +491,19 @@ const togglePollStatus = async (req, res) => {
     const poll = await Poll.findByPk(req.params.id);
 
     if (!poll) {
-      return res.status(404).json({
-        success: false,
-        message: 'Poll not found'
-      });
+      return error(res, 'Poll not found', 404);
     }
 
     if (poll.is_finalized && is_active) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot reactivate a finalized poll'
-      });
+      return error(res, 'Cannot reactivate a finalized poll', 400);
     }
 
     poll.is_active = is_active;
     await poll.save();
 
-    res.status(200).json({
-      success: true,
-      message: `Poll ${is_active ? 'activated' : 'deactivated'} successfully`,
-      data: poll
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, poll, `Poll ${is_active ? 'activated' : 'deactivated'} successfully`, 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -587,17 +515,11 @@ const finalizePoll = async (req, res) => {
     const poll = await Poll.findByPk(req.params.id);
 
     if (!poll) {
-      return res.status(404).json({
-        success: false,
-        message: 'Poll not found'
-      });
+      return error(res, 'Poll not found', 404);
     }
 
     if (poll.is_finalized) {
-      return res.status(400).json({
-        success: false,
-        message: 'Poll is already finalized'
-      });
+      return error(res, 'Poll is already finalized', 400);
     }
 
     poll.is_finalized = true;
@@ -605,17 +527,9 @@ const finalizePoll = async (req, res) => {
     poll.finalized_at = new Date();
     await poll.save();
 
-    res.status(200).json({
-      success: true,
-      message: 'Poll finalized successfully',
-      data: poll
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, poll, 'Poll finalized successfully', 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -709,24 +623,14 @@ const deletePoll = async (req, res) => {
     const poll = await Poll.findByPk(req.params.id);
 
     if (!poll) {
-      return res.status(404).json({
-        success: false,
-        message: 'Poll not found'
-      });
+      return error(res, 'Poll not found', 404);
     }
 
     await poll.destroy();
 
-    res.status(200).json({
-      success: true,
-      message: 'Poll deleted successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'Poll deleted successfully', 204);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

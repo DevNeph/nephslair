@@ -12,18 +12,10 @@ const getAllProjects = async (req, res) => {
       order: [['created_at', 'DESC']] 
     });
 
-    res.status(200).json({
-      success: true,
-      count: projects.length,
-      data: projects
-    });
-  } catch (error) {
-    console.error('Error fetching projects:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, projects, undefined, 200);
+  } catch (err) {
+    console.error('Error fetching projects:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -52,18 +44,10 @@ const getAllProjectsAdmin = async (req, res) => {
 
     console.log(`✅ Found ${projects.length} projects`);
 
-    res.status(200).json({
-      success: true,
-      count: projectsWithCount.length,
-      data: projectsWithCount
-    });
-  } catch (error) {
-    console.error('❌ Error fetching projects:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, projectsWithCount, undefined, 200);
+  } catch (err) {
+    console.error('❌ Error fetching projects:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -77,23 +61,13 @@ const getProjectBySlug = async (req, res) => {
     });
 
     if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
+      return error(res, 'Project not found', 404);
     }
 
-    res.status(200).json({
-      success: true,
-      data: project
-    });
-  } catch (error) {
-    console.error('Error fetching project:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, project);
+  } catch (err) {
+    console.error('Error fetching project:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -155,27 +129,17 @@ const deleteProject = async (req, res) => {
     const project = await Project.findByPk(req.params.id);
 
     if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
+      return error(res, 'Project not found', 404);
     }
 
     await project.destroy();
 
     console.log('✅ Project deleted:', req.params.id);
 
-    res.status(200).json({
-      success: true,
-      message: 'Project deleted successfully'
-    });
-  } catch (error) {
-    console.error('❌ Error deleting project:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'Project deleted successfully', 204);
+  } catch (err) {
+    console.error('❌ Error deleting project:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -189,25 +153,15 @@ const getProjectById = async (req, res) => {
     const project = await Project.findByPk(req.params.id);
 
     if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
+      return error(res, 'Project not found', 404);
     }
 
     console.log('✅ Project found:', project.name);
 
-    res.status(200).json({
-      success: true,
-      data: project
-    });
-  } catch (error) {
-    console.error('❌ Error fetching project:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, project);
+  } catch (err) {
+    console.error('❌ Error fetching project:', err);
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

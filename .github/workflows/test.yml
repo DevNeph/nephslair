@@ -55,18 +55,43 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y mysql-client
-          timeout 30 bash -c 'until mysqladmin ping -h 127.0.0.1 -u root -proot --silent; do sleep 1; done'
+          echo "Waiting for MySQL to be ready..."
+          for i in {1..30}; do
+            if mysqladmin ping -h 127.0.0.1 -u root -proot --silent; then
+              echo "MySQL is ready!"
+              mysqladmin ping -h 127.0.0.1 -u root -proot
+              break
+            fi
+            echo "Waiting for MySQL... ($i/30)"
+            sleep 1
+          done
+
+      - name: Verify MySQL connection
+        run: |
+          mysql -h 127.0.0.1 -u root -proot -e "SELECT 1;" || exit 1
+          echo "MySQL connection verified!"
 
       - name: Run migrations
         working-directory: ./backend
         env:
+          NODE_ENV: test
           DB_HOST: 127.0.0.1
           DB_USER: root
           DB_PASSWORD: root
           DB_NAME: nephslair_test
           DB_DIALECT: mysql
         run: |
-          npx sequelize-cli db:migrate --config backend/config/config.js --migrations-path backend/migrations --env test || true
+          echo "Running migrations..."
+          if npx sequelize-cli db:migrate --config backend/config/config.js --migrations-path backend/migrations --env test; then
+            echo "✅ Migrations completed successfully!"
+          else
+            echo "⚠️ Migration failed, but continuing with tests..."
+            echo "Note: Some tests may fail if database tables are missing"
+          fi
+
+      - name: Verify database setup
+        run: |
+          mysql -h 127.0.0.1 -u root -proot nephslair_test -e "SHOW TABLES;" || echo "Database may be empty, but migrations will create tables"
 
       - name: Run tests
         working-directory: ./backend
@@ -79,7 +104,12 @@ jobs:
           DB_NAME: nephslair_test
           DB_DIALECT: mysql
           JWT_SECRET: test_jwt_secret_key_for_ci
-        run: npm test
+        run: |
+          echo "Starting tests..."
+          npm test || {
+            echo "Tests failed!"
+            exit 1
+          }
 
       - name: Upload coverage reports
         if: always()

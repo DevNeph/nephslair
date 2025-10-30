@@ -46,12 +46,14 @@ frontend/
 - Errors: consistent, validation-first
 - Rate limits: auth, upload, voting, comments
 - Auth: Bearer JWT; admin endpoints gated by adminAuth
+- **Status Codes**: REST-compliant (200 OK, 201 Created, 204 No Content, 400 Bad Request, 401 Unauthorized, 403 Forbidden, 404 Not Found, 500 Server Error)
 
 ## Notable Backend Utilities
-- `utils/response.js`: success/error
-- `utils/validate.js`: required fields
+- `utils/response.js`: standardized success/error responses
+- `utils/validate.js`: required fields validation
 - `utils/files.js`: download URL + physical deletion helpers
 - `utils/email.js`: SMTP via env, safe mock if unset
+- **Testing**: Jest + Supertest for HTTP status code validation
 
 ## Database
 - MySQL via Sequelize
@@ -128,6 +130,50 @@ npm run dev
 - DRY helpers, minimal boilerplate
 - Safe migrations (idempotent add, guarded change/remove)
 - Predictable UI patterns (forms, buttons, loaders)
+
+## Testing
+
+### Automated Tests
+
+The project includes automated tests using Jest + Supertest for HTTP status code validation.
+
+**Running Tests:**
+```bash
+cd backend
+
+# Run all tests with coverage
+npm test
+
+# Run only status code tests
+npm run test:status
+
+# Watch mode (auto-run on changes)
+npm run test:watch
+```
+
+**Test Coverage:**
+- Coverage reports are generated in `backend/coverage/`
+- Tests cover HTTP status codes (200, 201, 204, 400, 401, 403, 404)
+- Response format consistency validation
+
+### CI/CD (GitHub Actions)
+
+Automated tests run on every push/PR via GitHub Actions:
+
+- **Service Container**: Automatic MySQL 8.0 container for isolated testing
+- **No Configuration Needed**: Tests run automatically on push to `main` or `develop`
+- **Results**: Check the **Actions** tab in your GitHub repository
+
+**Workflow File:** `.github/workflows/test.yml`
+
+For detailed testing documentation, see [backend/TESTING.md](./backend/TESTING.md)
+
+### Manual Testing
+
+You can also test manually using:
+- **Swagger UI**: `http://localhost:3001/api-docs`
+- **Postman/cURL**: See [backend/TESTING.md](./backend/TESTING.md) for examples
+- **Browser DevTools**: Network tab for status code inspection
 
 ## License
 This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details.

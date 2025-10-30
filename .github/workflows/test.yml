@@ -9,30 +9,42 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_ENV: test
+      DB_HOST: mysql
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: nephslair_test
+      DB_DIALECT: mysql
+      JWT_SECRET: test_jwt_secret_key_for_ci
+      PORT: 0
 
-    # Option 1: Use Service Container (Automatic MySQL - No setup needed)
-    # This creates a fresh MySQL container for each test run
     services:
       mysql:
         image: mysql:8.0
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: nephslair_test
-        ports:
-          - 3306:3306
-        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        # Service container içinde çalışan healthcheck (container içinden localhost'a ping)
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=30
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install dependencies
+      - name: Install backend dependencies
         working-directory: ./backend
         run: npm ci
 
@@ -40,59 +52,59 @@ jobs:
         working-directory: ./backend
         run: |
           cat > .env.test << EOF
-          NODE_ENV=test
-          PORT=3001
-          DB_HOST=127.0.0.1
-          DB_USER=root
-          DB_PASSWORD=root
-          DB_NAME=nephslair_test
-          DB_DIALECT=mysql
-          JWT_SECRET=test_jwt_secret_key_for_ci
+          NODE_ENV=${NODE_ENV}
+          PORT=${PORT}
+          DB_HOST=${DB_HOST}
+          DB_USER=${DB_USER}
+          DB_PASSWORD=${DB_PASSWORD}
+          DB_NAME=${DB_NAME}
+          DB_DIALECT=${DB_DIALECT}
+          JWT_SECRET=${JWT_SECRET}
           JWT_EXPIRE=7d
           EOF
 
-      - name: Wait for MySQL to be ready
+      - name: Install MySQL client & wait for service
         run: |
           sudo apt-get update
-          sudo apt-get install -y mysql-client
-          echo "Waiting for MySQL to be ready..."
-          for i in {1..30}; do
-            if mysqladmin ping -h 127.0.0.1 -u root -proot --silent; then
+          sudo apt-get install -y --no-install-recommends mysql-client
+          echo "Waiting for MySQL (service: mysql) to be ready..."
+          for i in {1..90}; do
+            if mysqladmin ping -h mysql -u root -proot --silent; then
               echo "MySQL is ready!"
-              mysqladmin ping -h 127.0.0.1 -u root -proot
               break
             fi
-            echo "Waiting for MySQL... ($i/30)"
+            echo "Waiting for MySQL... ($i/90)"
             sleep 1
           done
+          # If still not healthy, fail fast
+          if ! mysqladmin ping -h mysql -u root -proot --silent; then
+            echo "❌ MySQL did not become ready in time."
+            exit 1
+          fi
 
       - name: Verify MySQL connection
         run: |
-          mysql -h 127.0.0.1 -u root -proot -e "SELECT 1;" || exit 1
+          mysql -h mysql -u root -proot -e "SELECT 1;" || exit 1
           echo "MySQL connection verified!"
 
       - name: Run migrations
         working-directory: ./backend
-        env:
-          NODE_ENV: test
-          DB_HOST: 127.0.0.1
-          DB_USER: root
-          DB_PASSWORD: root
-          DB_NAME: nephslair_test
-          DB_DIALECT: mysql
         run: |
           echo "Running migrations..."
-          npx sequelize-cli db:migrate --config backend/config/config.js --migrations-path backend/migrations --env test || {
-            echo "❌ Migration failed!"
-            echo "Cannot proceed with tests without database tables."
-            exit 1
-          }
+          npx sequelize-cli db:migrate \
+            --config config/config.js \
+            --migrations-path migrations \
+            --env test || {
+              echo "❌ Migration failed!"
+              echo "Cannot proceed with tests without database tables."
+              exit 1
+            }
           echo "✅ Migrations completed successfully!"
 
       - name: Verify database setup
         run: |
           echo "Verifying database tables..."
-          TABLES=$(mysql -h 127.0.0.1 -u root -proot nephslair_test -e "SHOW TABLES;" 2>&1)
+          TABLES=$(mysql -h mysql -u root -proot "$DB_NAME" -e "SHOW TABLES;" 2>&1)
           if [ $? -eq 0 ]; then
             echo "✅ Database tables exist:"
             echo "$TABLES"
@@ -104,14 +116,6 @@ jobs:
       - name: Run tests
         working-directory: ./backend
         timeout-minutes: 10
-        env:
-          NODE_ENV: test
-          DB_HOST: 127.0.0.1
-          DB_USER: root
-          DB_PASSWORD: root
-          DB_NAME: nephslair_test
-          DB_DIALECT: mysql
-          JWT_SECRET: test_jwt_secret_key_for_ci
         run: |
           echo "=========================================="
           echo "Starting Tests"
@@ -122,26 +126,40 @@ jobs:
           echo "=========================================="
           echo ""
           echo "Verifying database connection before tests..."
-          mysql -h 127.0.0.1 -u root -proot nephslair_test -e "SELECT 1;" || {
+          mysql -h mysql -u root -proot "$DB_NAME" -e "SELECT 1;" || {
             echo "❌ Cannot connect to database!"
             exit 1
           }
           echo "✅ Database connection OK"
           echo ""
           echo "Running Jest tests..."
-          npm test 2>&1
-          TEST_EXIT_CODE=$?
-          if [ $TEST_EXIT_CODE -ne 0 ]; then
+          # Use --runInBand to run tests serially (important for DB connection pool)
+          # Coverage is collected but won't fail the build if coverage is low
+          if [ -x "./node_modules/.bin/jest" ]; then
+            if ./node_modules/.bin/jest --runInBand --coverage --coverageReporters=text-summary; then
+              TEST_EXIT_CODE=0
+            else
+              TEST_EXIT_CODE=$?
+            fi
+          else
+            echo "⚠️ Jest binary not found, falling back to npm test (note: --runInBand may not apply)"
+            if npm test; then
+              TEST_EXIT_CODE=0
+            else
+              TEST_EXIT_CODE=$?
+            fi
+          fi
+          if [ $TEST_EXIT_CODE -eq 0 ]; then
+            echo ""
+            echo "=========================================="
+            echo "✅ All tests passed!"
+            echo "=========================================="
+          else
             echo ""
             echo "=========================================="
             echo "❌ Tests failed with exit code $TEST_EXIT_CODE"
             echo "=========================================="
             exit $TEST_EXIT_CODE
-          else
-            echo ""
-            echo "=========================================="
-            echo "✅ All tests passed!"
-            echo "=========================================="
           fi
 
       - name: Upload coverage reports

@@ -130,4 +130,4 @@ npm run dev
 - Predictable UI patterns (forms, buttons, loaders)
 
 ## License
-MIT (or your preferred license)
+This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details.

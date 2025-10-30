@@ -1,0 +1,93 @@
+# Example: Using External Database with GitHub Secrets
+# Copy this to test.yml if you want to use an external database
+# 
+# To use this:
+# 1. Go to your GitHub repo → Settings → Secrets and variables → Actions
+# 2. Add these secrets:
+#    - DB_HOST (e.g., your-db-host.com)
+#    - DB_USER (e.g., test_user)
+#    - DB_PASSWORD (your database password)
+#    - DB_NAME (e.g., nephslair_test)
+#    - DB_DIALECT (mysql)
+
+name: Test Suite (External DB)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Note: No service container needed when using external DB
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Create test environment file
+        working-directory: ./backend
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_DIALECT: ${{ secrets.DB_DIALECT || 'mysql' }}
+        run: |
+          cat > .env.test << EOF
+          NODE_ENV=test
+          PORT=3001
+          DB_HOST=${DB_HOST}
+          DB_USER=${DB_USER}
+          DB_PASSWORD=${DB_PASSWORD}
+          DB_NAME=${DB_NAME}
+          DB_DIALECT=${DB_DIALECT}
+          JWT_SECRET=test_jwt_secret_key_for_ci
+          JWT_EXPIRE=7d
+          EOF
+
+      - name: Run migrations
+        working-directory: ./backend
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_DIALECT: ${{ secrets.DB_DIALECT || 'mysql' }}
+        run: |
+          npx sequelize-cli db:migrate --config backend/config/config.js --migrations-path backend/migrations --env test || true
+
+      - name: Run tests
+        working-directory: ./backend
+        env:
+          NODE_ENV: test
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_DIALECT: ${{ secrets.DB_DIALECT || 'mysql' }}
+          JWT_SECRET: test_jwt_secret_key_for_ci
+        run: npm test
+
+      - name: Upload coverage reports
+        if: always()
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+

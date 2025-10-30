@@ -1,0 +1,91 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Option 1: Use Service Container (Automatic MySQL - No setup needed)
+    # This creates a fresh MySQL container for each test run
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: nephslair_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Create test environment file
+        working-directory: ./backend
+        run: |
+          cat > .env.test << EOF
+          NODE_ENV=test
+          PORT=3001
+          DB_HOST=127.0.0.1
+          DB_USER=root
+          DB_PASSWORD=root
+          DB_NAME=nephslair_test
+          DB_DIALECT=mysql
+          JWT_SECRET=test_jwt_secret_key_for_ci
+          JWT_EXPIRE=7d
+          EOF
+
+      - name: Wait for MySQL to be ready
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+          timeout 30 bash -c 'until mysqladmin ping -h 127.0.0.1 -u root -proot --silent; do sleep 1; done'
+
+      - name: Run migrations
+        working-directory: ./backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASSWORD: root
+          DB_NAME: nephslair_test
+          DB_DIALECT: mysql
+        run: |
+          npx sequelize-cli db:migrate --config backend/config/config.js --migrations-path backend/migrations --env test || true
+
+      - name: Run tests
+        working-directory: ./backend
+        timeout-minutes: 10
+        env:
+          NODE_ENV: test
+          DB_HOST: 127.0.0.1
+          DB_USER: root
+          DB_PASSWORD: root
+          DB_NAME: nephslair_test
+          DB_DIALECT: mysql
+          JWT_SECRET: test_jwt_secret_key_for_ci
+        run: npm test
+
+      - name: Upload coverage reports
+        if: always()
+        uses: codecov/codecov-action@v3
+        continue-on-error: true
+        with:
+          file: ./backend/coverage/coverage-final.json
+          flags: unittests
+          name: codecov-umbrella

@@ -1,4 +1,6 @@
 const { Changelog, Project } = require('../models');
+const { validateFields } = require('../utils/validate');
+const { success, error } = require('../utils/response');
 
 // @desc    Get all changelogs for a project
 // @route   GET /api/changelogs/project/:projectSlug
@@ -107,23 +109,11 @@ const getChangelogById = async (req, res) => {
 const createChangelog = async (req, res) => {
   try {
     const { project_id, version, explanation, release_date, content } = req.body;
-
-    if (!project_id || !version) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide project_id and version'
-      });
-    }
-
+    const validationError = validateFields(req.body, ['project_id', 'version']);
+    if (validationError) return error(res, validationError, 400);
     // Check if project exists
     const project = await Project.findByPk(project_id);
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
-    }
-
+    if (!project) return error(res, 'Project not found', 404);
     const changelog = await Changelog.create({
       project_id,
       version,
@@ -131,18 +121,9 @@ const createChangelog = async (req, res) => {
       release_date: release_date || new Date(),
       content: typeof content === 'string' ? content : JSON.stringify(content)
     });
-
-    res.status(201).json({
-      success: true,
-      message: 'Changelog created successfully',
-      data: changelog
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, changelog, 'Changelog created successfully', 201);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -152,36 +133,18 @@ const createChangelog = async (req, res) => {
 const updateChangelog = async (req, res) => {
   try {
     const { version, explanation, release_date, content } = req.body;
-
     const changelog = await Changelog.findByPk(req.params.id);
-
-    if (!changelog) {
-      return res.status(404).json({
-        success: false,
-        message: 'Changelog not found'
-      });
-    }
-
+    if (!changelog) return error(res, 'Changelog not found', 404);
     if (version) changelog.version = version;
     if (explanation !== undefined) changelog.explanation = explanation;
     if (release_date) changelog.release_date = release_date;
     if (content !== undefined) {
       changelog.content = typeof content === 'string' ? content : JSON.stringify(content);
     }
-
     await changelog.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Changelog updated successfully',
-      data: changelog
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, changelog, 'Changelog updated successfully', 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

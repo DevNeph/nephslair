@@ -1,29 +1,52 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
 import { register as registerUser } from '../../services/authService';
 import ErrorMessage from '../../components/common/ErrorMessage';
+import { useFormHandler } from '../../utils/useFormHandler';
+import { request } from '../../services/request';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const { register, handleSubmit, watch, formState: { errors } } = useForm();
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
 
-  const password = watch('password');
-
-  const onSubmit = async (data) => {
-    try {
-      setLoading(true);
-      setError(null);
-      await registerUser(data);
-      navigate('/login');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Error registering');
-    } finally {
-      setLoading(false);
+  const form = useFormHandler({ username: '', email: '', password: '', confirmPassword: '' }, (values) => {
+    const errors = {};
+    if (!values.username?.trim()) {
+      errors.username = 'Username is required';
+    } else if (!/^[a-zA-Z0-9_]+$/.test(values.username)) {
+      errors.username = 'Only letters, numbers and underscore';
+    } else if (values.username.length < 3) {
+      errors.username = 'Minimum 3 characters';
     }
-  };
+
+    if (!values.email?.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(values.email)) {
+      errors.email = 'Invalid email address';
+    }
+
+    if (!values.password?.trim()) {
+      errors.password = 'Password is required';
+    } else if (values.password.length < 6) {
+      errors.password = 'Minimum 6 characters';
+    }
+
+    if (!values.confirmPassword?.trim()) {
+      errors.confirmPassword = 'Please confirm your password';
+    } else if (values.confirmPassword !== values.password) {
+      errors.confirmPassword = 'Passwords do not match';
+    }
+
+    return errors;
+  });
+
+  const onSubmit = form.handleSubmit(async (values) => {
+    setError(null);
+    await request(() => registerUser(values), setError, undefined);
+    if (!setError) {
+      navigate('/login');
+    }
+  });
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-12">
@@ -38,7 +61,7 @@ const RegisterPage = () => {
         <div className="bg-neutral-900/50 border border-neutral-800 rounded-lg p-8 backdrop-blur-sm">
           {error && <ErrorMessage message={error} />}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+          <form onSubmit={onSubmit} className="space-y-5">
             {/* Username Field */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-400">
@@ -46,19 +69,14 @@ const RegisterPage = () => {
               </label>
               <input
                 type="text"
-                {...register('username', { 
-                  required: 'Username is required',
-                  minLength: { value: 3, message: 'Minimum 3 characters' },
-                  pattern: {
-                    value: /^[a-zA-Z0-9_]+$/,
-                    message: 'Only letters, numbers and underscore'
-                  }
-                })}
+                name="username"
+                value={form.form.username}
+                onChange={form.handleChange}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-600 transition-colors"
                 placeholder="johndoe"
               />
-              {errors.username && (
-                <p className="text-red-400 text-sm mt-1">{errors.username.message}</p>
+              {form.errors.username && (
+                <p className="text-red-400 text-sm mt-1">{form.errors.username}</p>
               )}
             </div>
 
@@ -69,18 +87,14 @@ const RegisterPage = () => {
               </label>
               <input
                 type="email"
-                {...register('email', { 
-                  required: 'Email is required',
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: 'Invalid email address'
-                  }
-                })}
+                name="email"
+                value={form.form.email}
+                onChange={form.handleChange}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-600 transition-colors"
                 placeholder="you@example.com"
               />
-              {errors.email && (
-                <p className="text-red-400 text-sm mt-1">{errors.email.message}</p>
+              {form.errors.email && (
+                <p className="text-red-400 text-sm mt-1">{form.errors.email}</p>
               )}
             </div>
 
@@ -91,15 +105,14 @@ const RegisterPage = () => {
               </label>
               <input
                 type="password"
-                {...register('password', { 
-                  required: 'Password is required',
-                  minLength: { value: 6, message: 'Minimum 6 characters' }
-                })}
+                name="password"
+                value={form.form.password}
+                onChange={form.handleChange}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-600 transition-colors"
                 placeholder="Create a password"
               />
-              {errors.password && (
-                <p className="text-red-400 text-sm mt-1">{errors.password.message}</p>
+              {form.errors.password && (
+                <p className="text-red-400 text-sm mt-1">{form.errors.password}</p>
               )}
             </div>
 
@@ -110,25 +123,24 @@ const RegisterPage = () => {
               </label>
               <input
                 type="password"
-                {...register('confirmPassword', { 
-                  required: 'Please confirm your password',
-                  validate: value => value === password || 'Passwords do not match'
-                })}
+                name="confirmPassword"
+                value={form.form.confirmPassword}
+                onChange={form.handleChange}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-600 transition-colors"
                 placeholder="Confirm your password"
               />
-              {errors.confirmPassword && (
-                <p className="text-red-400 text-sm mt-1">{errors.confirmPassword.message}</p>
+              {form.errors.confirmPassword && (
+                <p className="text-red-400 text-sm mt-1">{form.errors.confirmPassword}</p>
               )}
             </div>
 
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={form.loading}
               className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed mt-6"
             >
-              {loading ? (
+              {form.loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

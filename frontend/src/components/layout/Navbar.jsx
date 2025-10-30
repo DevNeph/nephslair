@@ -9,9 +9,28 @@ const Navbar = () => {
   const [projects, setProjects] = useState([]);
   const [isProjectsOpen, setIsProjectsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [siteName, setSiteName] = useState('Nephslair');
 
   useEffect(() => {
     fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    const loadSettings = () => {
+      try {
+        const raw = localStorage.getItem('website_settings');
+        if (raw) {
+          const s = JSON.parse(raw);
+          if (s.site_name) setSiteName(s.site_name);
+        }
+      } catch (_) {}
+    };
+    loadSettings();
+    const onStorage = (e) => {
+      if (e.key === 'website_settings') loadSettings();
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
 
   const fetchProjects = async () => {
@@ -30,7 +49,7 @@ const Navbar = () => {
           <div className="flex items-center justify-between h-16">
             {/* Logo - Left */}
             <Link to="/" className="text-2xl font-bold text-white hover:text-gray-300 transition">
-              Nephslair
+              {siteName}
             </Link>
 
             {/* Projects Dropdown Button - Center */}

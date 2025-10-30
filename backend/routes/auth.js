@@ -1,7 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, getMe } = require('../controllers/authController');
+const { register, login, getMe, forgotPassword, resetPassword, validateResetToken } = require('../controllers/authController');
 const auth = require('../middleware/auth');
+const rateLimit = require('../middleware/rateLimit');
+
+const limitAuth = rateLimit({ windowMs: 60 * 1000, max: 10, keyGenerator: (req) => `${req.ip}:auth` });
 
 /**
  * @swagger
@@ -32,10 +35,23 @@ const auth = require('../middleware/auth');
  *     responses:
  *       201:
  *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
  *       400:
  *         description: Bad request
+ *       429:
+ *         description: Too many requests
  */
-router.post('/register', register);
+router.post('/register', limitAuth, register);
 
 /**
  * @swagger
@@ -62,10 +78,23 @@ router.post('/register', register);
  *     responses:
  *       200:
  *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
  *       401:
  *         description: Invalid credentials
+ *       429:
+ *         description: Too many requests
  */
-router.post('/login', login);
+router.post('/login', limitAuth, login);
 
 /**
  * @swagger
@@ -82,5 +111,10 @@ router.post('/login', login);
  *         description: Unauthorized
  */
 router.get('/me', auth, getMe);
+
+// Password reset
+router.post('/forgot-password', limitAuth, forgotPassword);
+router.post('/reset-password', limitAuth, resetPassword);
+router.get('/reset-password/validate', limitAuth, validateResetToken);
 
 module.exports = router;

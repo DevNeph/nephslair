@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FiUsers, FiFolderPlus, FiFileText, FiMessageSquare, FiPackage, FiBarChart2 } from 'react-icons/fi';
+import { FiUsers, FiFolderPlus, FiFileText, FiMessageSquare, FiPackage, FiBarChart2, FiSettings} from 'react-icons/fi';
 import api from '../../../services/api';
+import { request } from '../../../services/request';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
@@ -20,23 +21,23 @@ const AdminDashboard = () => {
   const fetchStats = async () => {
     try {
       const [usersRes, projectsRes, postsRes, commentsRes, releasesRes, pollsRes] = await Promise.all([
-        api.get('/users'),
-        api.get('/projects'),
-        api.get('/posts'),
-        api.get('/comments'),
-        api.get('/releases/admin/all'),
-        api.get('/polls/admin/all')
+        request(() => api.get('/users')),
+        request(() => api.get('/projects')),
+        request(() => api.get('/posts')),
+        request(() => api.get('/comments')),
+        request(() => api.get('/releases/admin/all')),
+        request(() => api.get('/polls/admin/all')),
       ]);
-
       setStats({
-        users: usersRes.data.data?.length || 0,
-        projects: projectsRes.data.data?.length || 0,
-        posts: postsRes.data.data?.length || 0,
-        comments: commentsRes.data.data?.length || 0,
-        releases: releasesRes.data.count || 0,
-        polls: pollsRes.data.data?.length || 0
+        users: usersRes?.data?.data?.length || 0,
+        projects: projectsRes?.data?.data?.length || 0,
+        posts: postsRes?.data?.data?.length || 0,
+        comments: commentsRes?.data?.data?.length || 0,
+        releases: releasesRes?.data?.count || 0,
+        polls: pollsRes?.data?.data?.length || 0
       });
     } catch (error) {
+      // Console error only as before
       console.error('Error fetching stats:', error);
     }
   };
@@ -146,18 +147,18 @@ const AdminDashboard = () => {
             <span className="text-white font-medium">Create Release</span>
           </Link>
           <Link
-            to="/admin/polls"
+            to="/admin/polls/create"
             className="bg-neutral-800 hover:bg-neutral-700 rounded-lg p-4 text-center transition"
           >
             <FiBarChart2 className="text-purple-500 text-2xl mx-auto mb-2" />
-            <span className="text-white font-medium">Manage Polls</span>
+            <span className="text-white font-medium">Create Poll</span>
           </Link>
           <Link
-            to="/admin/users"
+            to="/admin/settings"
             className="bg-neutral-800 hover:bg-neutral-700 rounded-lg p-4 text-center transition"
           >
-            <FiUsers className="text-purple-500 text-2xl mx-auto mb-2" />
-            <span className="text-white font-medium">Manage Users</span>
+            <FiSettings className="text-purple-500 text-2xl mx-auto mb-2" />
+            <span className="text-white font-medium">Site Settings</span>
           </Link>
         </div>
       </div>

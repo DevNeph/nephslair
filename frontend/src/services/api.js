@@ -1,48 +1,44 @@
 import axios from 'axios';
 import { API_BASE_URL, TOKEN_KEY } from '../utils/constants';
 
-// Create axios instance
 const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api',
 });
 
-// Request interceptor - Add token to requests
-api.interceptors.request.use(
-  (config) => {
-    console.log(`📡 ${config.method.toUpperCase()} ${config.url}`); // LOG EKLENDI
-    
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+// Attach token if exists (skip for login/register)
+api.interceptors.request.use((config) => {
+  try {
+    const url = (config.url || '').toLowerCase();
+    const isAuthPath = url.includes('/auth/login') || url.includes('/auth/register');
+    if (!isAuthPath) {
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (token) {
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
-    return config;
-  },
-  (error) => {
-    console.error('❌ Request error:', error);
-    return Promise.reject(error);
-  }
-);
+  } catch (_) {}
+  return config;
+});
 
-// Response interceptor - Handle errors
-api.interceptors.response.use(
-  (response) => {
-    console.log(`✅ Response from ${response.config.url}:`, response.data); // LOG EKLENDI
-    return response;
-  },
-  (error) => {
-    console.error('❌ Response error:', error.response?.status, error.response?.data);
-    
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem('nephslair_user');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
+if (import.meta.env.MODE !== 'production') {
+  api.interceptors.request.use((config) => {
+    console.log('[API REQ]', config.method?.toUpperCase(), config.url, config.params || config.data);
+    return config;
+  });
+  api.interceptors.response.use((res) => {
+    console.log('[API RES]', res.status, res.config.url, res.data);
+    return res;
+  }, (err) => {
+    return Promise.reject(err);
+  });
+}
+
+export async function refreshSettingsCache() {
+  try {
+    const res = await api.get('/settings');
+    localStorage.setItem('website_settings', JSON.stringify(res.data?.data || {}));
+  } catch (_) {}
+}
 
 export default api;

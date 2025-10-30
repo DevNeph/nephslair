@@ -1,4 +1,6 @@
 const path = require('path');
+const { success, error } = require('../utils/response');
+const { buildDownloadUrl, deletePhysicalDownload } = require('../utils/files');
 
 // @desc    Upload release file
 // @route   POST /api/upload/release-file
@@ -6,39 +8,22 @@ const path = require('path');
 const uploadReleaseFile = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: 'No file uploaded'
-      });
+      return error(res, 'No file uploaded', 400);
     }
 
-    // Get file information
     const file = req.file;
-    
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-    const fileUrl = `${baseUrl}/downloads/${file.filename}`;
-    
-    // Get file extension
+    const fileUrl = buildDownloadUrl(req, file.filename);
     const ext = path.extname(file.originalname).toLowerCase().replace('.', '');
 
-    res.status(200).json({
-      success: true,
-      message: 'File uploaded successfully',
-      data: {
-        file_name: file.originalname,
-        file_url: fileUrl,
-        file_size: file.size,
-        file_type: ext,
-        server_filename: file.filename
-      }
-    });
-  } catch (error) {
-    console.error('Upload error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error uploading file',
-      error: error.message
-    });
+    return success(res, {
+      file_name: file.originalname,
+      file_url: fileUrl,
+      file_size: file.size,
+      file_type: ext,
+      server_filename: file.filename
+    }, 'File uploaded successfully', 200);
+  } catch (err) {
+    return error(res, 'Error uploading file', 500, err.message);
   }
 };
 
@@ -47,31 +32,14 @@ const uploadReleaseFile = async (req, res) => {
 // @access  Private/Admin
 const deleteUploadedFile = async (req, res) => {
   try {
-    const fs = require('fs');
-    const path = require('path');
     const filename = req.params.filename;
-    const filePath = path.join(__dirname, '../downloads', filename);
-
-    // Check if file exists
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      res.status(200).json({
-        success: true,
-        message: 'File deleted successfully'
-      });
-    } else {
-      res.status(404).json({
-        success: false,
-        message: 'File not found'
-      });
+    const deleted = deletePhysicalDownload(filename);
+    if (deleted) {
+      return success(res, null, 'File deleted successfully', 200);
     }
-  } catch (error) {
-    console.error('Delete error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting file',
-      error: error.message
-    });
+    return error(res, 'File not found', 404);
+  } catch (err) {
+    return error(res, 'Error deleting file', 500, err.message);
   }
 };
 

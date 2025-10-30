@@ -36,7 +36,12 @@ module.exports = (sequelize, DataTypes) => {
     modelName: 'CommentVote',
     tableName: 'comment_votes',
     underscored: true,
-    timestamps: true
+    timestamps: true,
+    indexes: [
+      { unique: true, fields: ['user_id', 'comment_id'], name: 'unique_user_comment_vote' },
+      { fields: ['comment_id'] },
+      { fields: ['user_id'] }
+    ]
   });
   
   return CommentVote;

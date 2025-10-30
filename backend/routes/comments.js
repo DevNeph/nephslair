@@ -10,6 +10,11 @@ const {
 } = require('../controllers/commentController');
 const auth = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth')
+const { voteComment } = require('../controllers/commentVoteController');
+const rateLimit = require('../middleware/rateLimit');
+
+const limitCommentCreate = rateLimit({ windowMs: 60 * 1000, max: 20, keyGenerator: (req) => `${req.ip}:comment-create:${req.body.post_id || ''}` });
+const limitCommentVote = rateLimit({ windowMs: 60 * 1000, max: 30, keyGenerator: (req) => `${req.ip}:comment-vote:${req.params.commentId || ''}` });
 
 // Get all comments (Admin only)
 router.get('/', auth, adminAuth, getAllComments);
@@ -64,8 +69,10 @@ router.get('/post/:postId', getCommentsByPost);
  *         description: Bad request
  *       401:
  *         description: Unauthorized
+ *       429:
+ *         description: Too many requests
  */
-router.post('/', auth, createComment);
+router.post('/', auth, limitCommentCreate, createComment);
 
 /**
  * @swagger
@@ -158,9 +165,10 @@ router.delete('/:id', auth, deleteComment);
  *     responses:
  *       200:
  *         description: Vote recorded/updated/removed
+ *       429:
+ *         description: Too many requests
  */
-const { voteComment } = require('../controllers/commentVoteController');
-router.post('/:commentId/vote', auth, voteComment);
+router.post('/:commentId/vote', auth, limitCommentVote, voteComment);
 router.get('/:id/history', getCommentHistory);
 
 module.exports = router;

@@ -1,4 +1,6 @@
 const { Post, User, Project, Comment, Poll, PollOption, Vote, Release, ReleaseFile, Changelog, PostPoll, PostDownload, PostRelease, sequelize } = require('../models');
+const { validateFields } = require('../utils/validate');
+const { success, error } = require('../utils/response');
 
 // @desc    Get all published posts (for homepage)
 // @route   GET /api/posts
@@ -323,40 +325,20 @@ const getAllPostsAdmin = async (req, res) => {
 const createPost = async (req, res) => {
   try {
     const { project_id, title, content, excerpt, status } = req.body;
-
-    if (!title || !content) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide title and content'
-      });
+    const validationError = validateFields(req.body, ['title', 'content']);
+    if (validationError) {
+      return error(res, validationError, 400);
     }
-
     const slug = title
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '');
-
+      .toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
     if (project_id) {
       const project = await Project.findByPk(project_id);
-      if (!project) {
-        return res.status(404).json({
-          success: false,
-          message: 'Project not found'
-        });
-      }
+      if (!project) return error(res, 'Project not found', 404);
     }
-
     const slugExists = await Post.findOne({ where: { slug } });
     if (slugExists) {
-      return res.status(400).json({
-        success: false,
-        message: 'Slug already exists. Please use a different title.'
-      });
+      return error(res, 'Slug already exists. Please use a different title.', 400);
     }
-
     const post = await Post.create({
       project_id: project_id || null, 
       author_id: req.user.id,
@@ -367,18 +349,9 @@ const createPost = async (req, res) => {
       status: status || 'draft',
       published_at: status === 'published' ? new Date() : null
     });
-
-    res.status(201).json({
-      success: true,
-      message: 'Post created successfully',
-      data: post
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, post, 'Post created successfully', 201);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -388,26 +361,14 @@ const createPost = async (req, res) => {
 const updatePost = async (req, res) => {
   try {
     const { title, slug, content, excerpt, status } = req.body;
-
     const post = await Post.findByPk(req.params.id);
-
-    if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
-    }
-
+    if (!post) return error(res, 'Post not found', 404);
     if (slug && slug !== post.slug) {
       const slugExists = await Post.findOne({ where: { slug } });
       if (slugExists && slugExists.id !== post.id) {
-        return res.status(400).json({
-          success: false,
-          message: 'Slug already exists'
-        });
+        return error(res, 'Slug already exists', 400);
       }
     }
-
     if (title) post.title = title;
     if (slug) post.slug = slug;
     if (content) post.content = content;
@@ -418,20 +379,10 @@ const updatePost = async (req, res) => {
         post.published_at = new Date();
       }
     }
-
     await post.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Post updated successfully',
-      data: post
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, post, 'Post updated successfully', 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

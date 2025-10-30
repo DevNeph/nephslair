@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { FiCheckCircle } from 'react-icons/fi';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
-import api from '../../services/api';
-import { emitPollVote, onPollVote } from '../../utils/pollEvents'; // ✅ EKLE
+import { emitPollVote, onPollVote } from '../../utils/pollEvents';
+import { getPollById, votePoll as votePollApi } from '../../services/pollService';
 
 const PostPolls = ({ polls }) => {
   const { user } = useAuth();
@@ -14,21 +14,14 @@ const PostPolls = ({ polls }) => {
     setPollsData(polls || []);
   }, [polls]);
 
-  // ✅ Listen for poll updates from other components
   useEffect(() => {
     const cleanup = onPollVote(async (event) => {
       const { pollId } = event.detail;
-      
-      // Check if this poll is in our list
       const pollExists = pollsData.find(p => p.id === pollId);
       if (pollExists) {
         try {
-          const response = await api.get(`/polls/${pollId}`);
-          const updatedPoll = response.data.data;
-          
-          setPollsData(prevPolls => 
-            prevPolls.map(p => p.id === pollId ? updatedPoll : p)
-          );
+          const updatedPoll = await getPollById(pollId);
+          setPollsData(prevPolls => prevPolls.map(p => p.id === pollId ? updatedPoll : p));
         } catch (error) {
           console.error('Error refreshing poll:', error);
         }
@@ -50,18 +43,10 @@ const PostPolls = ({ polls }) => {
 
     try {
       setVoting(optionId);
-      await api.post(`/polls/${pollId}/vote`, { poll_option_id: optionId });
-      
-      const response = await api.get(`/polls/${pollId}`);
-      const updatedPoll = response.data.data;
-      
-      setPollsData(prevPolls => 
-        prevPolls.map(p => p.id === pollId ? updatedPoll : p)
-      );
-      
+      await votePollApi(pollId, optionId);
+      const updatedPoll = await getPollById(pollId);
+      setPollsData(prevPolls => prevPolls.map(p => p.id === pollId ? updatedPoll : p));
       toast.success('Vote recorded!');
-      
-      // ✅ Notify other components
       emitPollVote(pollId);
     } catch (error) {
       console.error('Error voting:', error);
@@ -89,11 +74,9 @@ const PostPolls = ({ polls }) => {
         return (
           <div key={poll.id} className="bg-black border border-gray-700 rounded-lg p-6">
             <h3 className="text-lg font-medium text-white mb-4">{poll.question}</h3>
-            
             {poll.description && (
               <p className="text-sm text-gray-400 mb-4">{poll.description}</p>
             )}
-
             <div className="space-y-3 mb-4">
               {poll.options?.map((option) => {
                 const voteCount = parseInt(option.vote_count) || 0;
@@ -137,7 +120,6 @@ const PostPolls = ({ polls }) => {
               })}
             </div>
 
-            {/* ✅ BURASI DEĞİŞTİ */}
             <div className="flex items-center justify-between text-sm text-gray-500">
               <span>{totalVotes} total {totalVotes === 1 ? 'vote' : 'votes'}</span>
               {poll.is_closed && (

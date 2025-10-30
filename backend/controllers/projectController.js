@@ -1,4 +1,6 @@
 const { Project, Post, Release } = require('../models');
+const { validateFields } = require('../utils/validate');
+const { success, error } = require('../utils/response');
 
 // @desc    Get all projects (Public - only published)
 // @route   GET /api/projects
@@ -100,46 +102,20 @@ const getProjectBySlug = async (req, res) => {
 // @access  Private/Admin
 const createProject = async (req, res) => {
   try {
-    console.log('📝 Creating new project:', req.body);
-    
     const { name, slug, description, status } = req.body;
-
-    if (!name || !slug) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide name and slug'
-      });
-    }
-
+    const validationError = validateFields(req.body, ['name', 'slug']);
+    if (validationError) return error(res, validationError, 400);
     const existingProject = await Project.findOne({ where: { slug } });
-    if (existingProject) {
-      return res.status(400).json({
-        success: false,
-        message: 'A project with this slug already exists'
-      });
-    }
-
+    if (existingProject) return error(res, 'A project with this slug already exists', 400);
     const project = await Project.create({
       name,
       slug,
       description: description || null,
       status: status || 'draft'
     });
-
-    console.log('✅ Project created:', project.id);
-
-    res.status(201).json({
-      success: true,
-      message: 'Project created successfully',
-      data: project
-    });
-  } catch (error) {
-    console.error('❌ Error creating project:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, project, 'Project created successfully', 201);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -148,57 +124,24 @@ const createProject = async (req, res) => {
 // @access  Private/Admin
 const updateProject = async (req, res) => {
   try {
-    console.log('📝 Updating project:', req.params.id, req.body);
-    
     const project = await Project.findByPk(req.params.id);
-
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
-    }
-
+    if (!project) return error(res, 'Project not found', 404);
     const { name, slug, description, status } = req.body;
-    
     if (name) project.name = name;
     if (slug) {
       const { Op } = require('sequelize');
-      const existingProject = await Project.findOne({ 
-        where: { 
-          slug,
-          id: { [Op.ne]: req.params.id }
-        } 
-      });
-      
+      const existingProject = await Project.findOne({ where: { slug, id: { [Op.ne]: req.params.id } } });
       if (existingProject) {
-        return res.status(400).json({
-          success: false,
-          message: 'A project with this slug already exists'
-        });
+        return error(res, 'A project with this slug already exists', 400);
       }
-      
       project.slug = slug;
     }
     if (description !== undefined) project.description = description;
     if (status) project.status = status;
-
     await project.save();
-
-    console.log('✅ Project updated:', project.id);
-
-    res.status(200).json({
-      success: true,
-      message: 'Project updated successfully',
-      data: project
-    });
-  } catch (error) {
-    console.error('❌ Error updating project:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, project, 'Project updated successfully', 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

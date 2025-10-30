@@ -1,30 +1,37 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
 import { login } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
 import ErrorMessage from '../../components/common/ErrorMessage';
+import { useFormHandler } from '../../utils/useFormHandler';
+import { request } from '../../services/request';
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const { updateUser } = useAuth();
-  const { register, handleSubmit, formState: { errors } } = useForm();
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
 
-  const onSubmit = async (data) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await login(data);
-      updateUser(response.user);
-      navigate('/');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Error logging in');
-    } finally {
-      setLoading(false);
+  const form = useFormHandler({ email: '', password: '' }, (values) => {
+    const errors = {};
+    if (!values.email?.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(values.email)) {
+      errors.email = 'Invalid email address';
     }
-  };
+    if (!values.password?.trim()) {
+      errors.password = 'Password is required';
+    }
+    return errors;
+  });
+
+  const onSubmit = form.handleSubmit(async (values) => {
+    setError(null);
+    const resp = await request(() => login(values), setError, undefined);
+    if (resp?.user) {
+      updateUser(resp.user);
+      navigate('/');
+    }
+  });
 
   return (
     <div className="min-h-[calc(100vh-64px)] flex items-center justify-center px-4 py-12">
@@ -39,7 +46,7 @@ const LoginPage = () => {
         <div className="bg-neutral-900/50 border border-neutral-800 rounded-lg p-8 backdrop-blur-sm">
           {error && <ErrorMessage message={error} />}
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={onSubmit} className="space-y-6">
             {/* Email Field */}
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-400">
@@ -47,18 +54,14 @@ const LoginPage = () => {
               </label>
               <input
                 type="email"
-                {...register('email', { 
-                  required: 'Email is required',
-                  pattern: {
-                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: 'Invalid email address'
-                  }
-                })}
+                name="email"
+                value={form.form.email}
+                onChange={form.handleChange}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-600 transition-colors"
                 placeholder="you@example.com"
               />
-              {errors.email && (
-                <p className="text-red-400 text-sm mt-1">{errors.email.message}</p>
+              {form.errors.email && (
+                <p className="text-red-400 text-sm mt-1">{form.errors.email}</p>
               )}
             </div>
 
@@ -69,22 +72,28 @@ const LoginPage = () => {
               </label>
               <input
                 type="password"
-                {...register('password', { required: 'Password is required' })}
+                name="password"
+                value={form.form.password}
+                onChange={form.handleChange}
                 className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-purple-600 transition-colors"
                 placeholder="Enter your password"
               />
-              {errors.password && (
-                <p className="text-red-400 text-sm mt-1">{errors.password.message}</p>
+              {form.errors.password && (
+                <p className="text-red-400 text-sm mt-1">{form.errors.password}</p>
               )}
+            </div>
+
+            <div className="flex items-center justify-end -mt-2 mb-2">
+              <Link to="/forgot-password" className="text-sm text-purple-400 hover:text-purple-300">Forgot password?</Link>
             </div>
 
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={form.loading}
               className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? (
+              {form.loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>

@@ -17,6 +17,9 @@ const {
 } = require('../controllers/pollController');
 const auth = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
+const rateLimit = require('../middleware/rateLimit');
+
+const limitPollVotes = rateLimit({ windowMs: 60 * 1000, max: 30, keyGenerator: (req) => `${req.ip}:poll-vote:${req.params.id || ''}` });
 
 /**
  * @swagger
@@ -214,7 +217,6 @@ router.post('/', auth, adminAuth, createPoll);
  *         required: true
  *         schema:
  *           type: integer
- *         description: Poll ID
  *     requestBody:
  *       required: true
  *       content:
@@ -226,18 +228,19 @@ router.post('/', auth, adminAuth, createPoll);
  *             properties:
  *               poll_option_id:
  *                 type: integer
- *                 example: 1
  *     responses:
  *       201:
  *         description: Vote created successfully
  *       200:
- *         description: Vote updated
+ *         description: Vote updated/removed
  *       400:
  *         description: Bad request
  *       401:
  *         description: Unauthorized
+ *       429:
+ *         description: Too many requests
  */
-router.post('/:id/vote', auth, votePoll);
+router.post('/:id/vote', auth, limitPollVotes, votePoll);
 
 /**
  * @swagger

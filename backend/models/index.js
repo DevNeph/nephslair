@@ -16,6 +16,7 @@ const CommentVote = require('./commentvote')(sequelize, require('sequelize').Dat
 const CommentHistory = require('./CommentHistory');
 const PostPoll = require('./PostPoll'); 
 const PostRelease = require('./PostRelease')(sequelize, require('sequelize').DataTypes);
+const Settings = require('./Settings')(sequelize);
 
 // ==========================================
 // DEFINE RELATIONSHIPS
@@ -196,5 +197,6 @@ module.exports = {
   CommentHistory,
   PostPoll, 
   PostRelease,
+  Settings,
   syncDatabase
 };

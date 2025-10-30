@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { FiBarChart2, FiTrash2, FiEye, FiToggleLeft, FiToggleRight, FiClock, FiLock } from 'react-icons/fi';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { request } from '../../../services/request';
 
 const ManagePolls = () => {
   const [polls, setPolls] = useState([]);
@@ -16,54 +17,34 @@ const ManagePolls = () => {
   const fetchPolls = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/polls/admin/all');
+      const response = await request(() => api.get('/polls/admin/all'), (msg) => toast.error(msg || 'Failed to load polls'));
+      if (!response) return;
       setPolls(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching polls:', error);
-      toast.error('Failed to load polls');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (pollId) => {
-    try {
-      await api.delete(`/polls/${pollId}`);
-      toast.success('Poll deleted successfully');
-      fetchPolls();
-      setDeleteModal({ show: false, pollId: null });
-    } catch (error) {
-      console.error('Error deleting poll:', error);
-      toast.error(error.response?.data?.message || 'Failed to delete poll');
-    }
+    await request(() => api.delete(`/polls/${pollId}`), (msg) => toast.error(msg || 'Failed to delete poll'));
+    toast.success('Poll deleted successfully');
+    fetchPolls();
+    setDeleteModal({ show: false, pollId: null });
   };
 
   const togglePollStatus = async (pollId, currentStatus) => {
-    try {
-      await api.patch(`/polls/${pollId}/toggle`, {
-        is_active: !currentStatus
-      });
-      toast.success(`Poll ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
-      fetchPolls();
-    } catch (error) {
-      console.error('Error toggling poll status:', error);
-      toast.error(error.response?.data?.message || 'Failed to update poll status');
-    }
+    await request(() => api.patch(`/polls/${pollId}/toggle`, { is_active: !currentStatus }), (msg) => toast.error(msg || 'Failed to update poll status'));
+    toast.success(`Poll ${!currentStatus ? 'activated' : 'deactivated'} successfully`);
+    fetchPolls();
   };
 
   const finalizePoll = async (pollId) => {
     if (!window.confirm('Are you sure you want to finalize this poll? This action cannot be undone!')) {
       return;
     }
-    
-    try {
-      await api.patch(`/polls/${pollId}/finalize`);
-      toast.success('Poll finalized successfully');
-      fetchPolls();
-    } catch (error) {
-      console.error('Error finalizing poll:', error);
-      toast.error(error.response?.data?.message || 'Failed to finalize poll');
-    }
+    await request(() => api.patch(`/polls/${pollId}/finalize`), (msg) => toast.error(msg || 'Failed to finalize poll'));
+    toast.success('Poll finalized successfully');
+    fetchPolls();
   };
 
   const getTotalVotes = (poll) => {

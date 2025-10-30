@@ -8,6 +8,7 @@ import Loading from '../../components/common/Loading';
 import ErrorMessage from '../../components/common/ErrorMessage';
 import { formatDate } from '../../utils/helpers';
 import api from '../../services/api';
+import { request } from '../../services/request';
 
 const ProjectPage = () => {
   const { slug } = useParams();
@@ -48,8 +49,8 @@ const ProjectPage = () => {
 
   const fetchPolls = async (projectId) => {
     try {
-      const response = await api.get(`/polls/project/${projectId}`);
-      setPolls(response.data.data || []);
+      const response = await request(() => api.get(`/polls/project/${projectId}`));
+      setPolls(response?.data?.data || []);
     } catch (error) {
       console.error('Error fetching polls:', error);
       // Don't show error to user, just log it
@@ -80,16 +81,16 @@ const ProjectPage = () => {
                 {project.name}
               </h2>
               
-              {project.version && (
+              {(project.latest_version || project.version) && (
                 <div className="mb-3">
                   <p className="text-sm text-gray-500 mb-1">Latest Version</p>
-                  <p className="text-white">{project.version}</p>
+                  <p className="text-white">{project.latest_version || project.version}</p>
                 </div>
               )}
               
               <div>
-                <p className="text-sm text-gray-500 mb-1">Publish Date</p>
-                <p className="text-white">{formatDate(project.created_at)}</p>
+                <p className="text-sm text-gray-500 mb-1">Last Updated</p>
+                <p className="text-white">{formatDate(project.updated_at || project.created_at)}</p>
               </div>
             </div>
 

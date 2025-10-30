@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FiArrowLeft, FiTrash2, FiToggleLeft, FiToggleRight, FiExternalLink, FiLock, FiEdit2 } from 'react-icons/fi';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { request } from '../../../services/request';
 
 const PollDetails = () => {
   const { id } = useParams();
@@ -18,59 +19,40 @@ const PollDetails = () => {
   const fetchPollDetails = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/polls/${id}`);
+      const response = await request(() => api.get(`/polls/${id}`), (msg) => toast.error('Failed to load poll details'));
+      if (!response) return;
       setPoll(response.data.data);
-    } catch (error) {
-      console.error('Error fetching poll details:', error);
-      toast.error('Failed to load poll details');
-      navigate('/admin/polls');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    try {
-      await api.delete(`/polls/${id}`);
-      toast.success('Poll deleted successfully');
-      navigate('/admin/polls');
-    } catch (error) {
-      console.error('Error deleting poll:', error);
-      toast.error(error.response?.data?.message || 'Failed to delete poll');
-    }
+    await request(() => api.delete(`/polls/${id}`), (msg) => toast.error(msg || 'Failed to delete poll'));
+    toast.success('Poll deleted successfully');
+    navigate('/admin/polls');
   };
 
   const togglePollStatus = async () => {
-    try {
-      await api.patch(`/polls/${id}/toggle`, {
-        is_active: !poll.is_active
-      });
-      toast.success(`Poll ${!poll.is_active ? 'activated' : 'deactivated'} successfully`);
-      fetchPollDetails();
-    } catch (error) {
-      console.error('Error toggling poll status:', error);
-      toast.error(error.response?.data?.message || 'Failed to update poll status');
-    }
+    await request(() => api.patch(`/polls/${id}/toggle`, {
+      is_active: !poll.is_active
+    }), (msg) => toast.error(msg || 'Failed to update poll status'));
+    toast.success(`Poll ${!poll.is_active ? 'activated' : 'deactivated'} successfully`);
+    fetchPollDetails();
   };
 
   const handleFinalize = async () => {
     if (!window.confirm('Are you sure you want to finalize this poll? This action cannot be undone and the poll cannot be reopened!')) {
       return;
     }
-    
-    try {
-      await api.patch(`/polls/${id}/finalize`);
-      toast.success('Poll finalized successfully');
-      fetchPollDetails();
-    } catch (error) {
-      console.error('Error finalizing poll:', error);
-      toast.error(error.response?.data?.message || 'Failed to finalize poll');
-    }
+    await request(() => api.patch(`/polls/${id}/finalize`), (msg) => toast.error(msg || 'Failed to finalize poll'));
+    toast.success('Poll finalized successfully');
+    fetchPollDetails();
   };
 
   const getTotalVotes = () => {
     if (!poll?.options) return 0;
-    return poll.options.reduce((total, option) => total + (option.votes_count || 0), 0);
+    return poll.options.reduce((total, option) => total + (option.vote_count || 0), 0);
   };
 
   const getPercentage = (votes) => {
@@ -261,17 +243,17 @@ const PollDetails = () => {
                   <span className="text-white font-medium">{option.option_text}</span>
                   <div className="text-right">
                     <span className="text-purple-400 font-bold text-lg">
-                      {getPercentage(option.votes_count)}%
+                      {getPercentage(option.vote_count)}%
                     </span>
                     <span className="text-gray-400 text-sm ml-2">
-                      ({option.votes_count} {option.votes_count === 1 ? 'vote' : 'votes'})
+                      ({option.vote_count} {option.vote_count === 1 ? 'vote' : 'votes'})
                     </span>
                   </div>
                 </div>
                 <div className="w-full bg-neutral-700 rounded-full h-3 overflow-hidden">
                   <div
                     className="bg-gradient-to-r from-purple-500 to-cyan-500 h-full rounded-full transition-all duration-500"
-                    style={{ width: `${getPercentage(option.votes_count)}%` }}
+                    style={{ width: `${getPercentage(option.vote_count)}%` }}
                   />
                 </div>
               </div>

@@ -4,6 +4,9 @@ const { uploadReleaseFile, deleteUploadedFile } = require('../controllers/upload
 const upload = require('../middleware/upload');
 const auth = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
+const rateLimit = require('../middleware/rateLimit');
+
+const limitUpload = rateLimit({ windowMs: 60 * 1000, max: 5, keyGenerator: (req) => `${req.ip}:upload` });
 
 /**
  * @swagger
@@ -32,8 +35,10 @@ const adminAuth = require('../middleware/adminAuth');
  *         description: Unauthorized
  *       403:
  *         description: Forbidden - Admin only
+ *       429:
+ *         description: Too many requests
  */
-router.post('/release-file', auth, adminAuth, upload.single('file'), uploadReleaseFile);
+router.post('/release-file', auth, adminAuth, limitUpload, upload.single('file'), uploadReleaseFile);
 
 /**
  * @swagger

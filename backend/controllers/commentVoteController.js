@@ -1,4 +1,6 @@
 const { CommentVote, Comment } = require('../models');
+const { validateFields } = require('../utils/validate');
+const { success, error } = require('../utils/response');
 
 // @desc    Vote on a comment (upvote/downvote)
 // @route   POST /api/comments/:commentId/vote
@@ -7,21 +9,13 @@ const voteComment = async (req, res) => {
   try {
     const { commentId } = req.params;
     const { vote_type } = req.body; // 'upvote' or 'downvote'
-    
-    if (!vote_type || !['upvote', 'downvote'].includes(vote_type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid vote type. Must be "upvote" or "downvote"'
-      });
+    const validationError = validateFields(req.body, ['vote_type']);
+    if (validationError || !['upvote', 'downvote'].includes(vote_type)) {
+      return error(res, 'Invalid vote type. Must be "upvote" or "downvote"', 400);
     }
 
     const comment = await Comment.findByPk(commentId);
-    if (!comment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Comment not found'
-      });
-    }
+    if (!comment) return error(res, 'Comment not found', 404);
 
     // Check if user already voted
     const existingVote = await CommentVote.findOne({
@@ -44,13 +38,9 @@ const voteComment = async (req, res) => {
         }
         await comment.save();
         
-        return res.status(200).json({
-          success: true,
-          message: 'Vote removed',
-          data: {
-            upvotes: comment.upvotes,
-            downvotes: comment.downvotes
-          }
+        return success(res, 'Vote removed', {
+          upvotes: comment.upvotes,
+          downvotes: comment.downvotes
         });
       }
       
@@ -69,13 +59,9 @@ const voteComment = async (req, res) => {
       }
       await comment.save();
       
-      return res.status(200).json({
-        success: true,
-        message: 'Vote updated',
-        data: {
-          upvotes: comment.upvotes,
-          downvotes: comment.downvotes
-        }
+      return success(res, 'Vote updated', {
+        upvotes: comment.upvotes,
+        downvotes: comment.downvotes
       });
     }
 
@@ -94,20 +80,12 @@ const voteComment = async (req, res) => {
     }
     await comment.save();
     
-    res.status(200).json({
-      success: true,
-      message: 'Vote recorded',
-      data: {
-        upvotes: comment.upvotes,
-        downvotes: comment.downvotes
-      }
+    return success(res, 'Vote recorded', {
+      upvotes: comment.upvotes,
+      downvotes: comment.downvotes
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

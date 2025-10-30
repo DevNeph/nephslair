@@ -11,6 +11,8 @@ import {
 import Loading from '../../../components/common/Loading';
 import toast from 'react-hot-toast';
 import { formatDate } from '../../../utils/helpers';
+import { request } from '../../../services/request';
+import { useFormHandler } from '../../../utils/useFormHandler';
 
 const PostForm = () => {
   const navigate = useNavigate();
@@ -30,15 +32,22 @@ const PostForm = () => {
   const [showPollModal, setShowPollModal] = useState(false);
   const [showReleaseModal, setShowReleaseModal] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const form = useFormHandler({
     title: '',
     content: '',
     project_id: '',
     status: 'draft',
     excerpt: ''
+  }, (values) => {
+    const errors = {};
+    if (!values.title?.trim()) {
+      errors.title = 'Title is required';
+    }
+    if (!values.content?.trim()) {
+      errors.content = 'Content is required';
+    }
+    return errors;
   });
-
-  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     fetchProjects();
@@ -49,35 +58,31 @@ const PostForm = () => {
   }, [id]);
 
   useEffect(() => {
-    fetchAvailablePolls(formData.project_id || null);
+    fetchAvailablePolls(form.form.project_id || null);
     
-    if (formData.project_id) {
-      fetchAvailableReleases(formData.project_id);
+    if (form.form.project_id) {
+      fetchAvailableReleases(form.form.project_id);
     } else {
       setAvailableReleases([]);
       if (!isEditMode) {
         setSelectedReleases([]);
       }
     }
-  }, [formData.project_id]);
+  }, [form.form.project_id]);
 
   const fetchProjects = async () => {
     try {
-      const response = await api.get('/projects/admin/all');
-      setProjects(response.data.data);
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects');
-    }
+      const res = await request(() => api.get('/projects/admin/all'), (msg) => toast.error('Failed to load projects'));
+      setProjects(res.data.data);
+    } catch {}
   };
 
   const fetchPost = async () => {
     try {
-      setLoading(true);
-      const response = await api.get(`/posts/admin/${id}`);
-      const post = response.data.data;
+      const res = await request(() => api.get(`/posts/admin/${id}`), (msg) => { toast.error('Failed to load post'); navigate('/admin/posts'); }, setLoading);
+      const post = res.data.data;
       
-      setFormData({
+      form.resetForm({
         title: post.title,
         content: post.content,
         project_id: post.project_id || '',
@@ -86,68 +91,30 @@ const PostForm = () => {
       });
 
       if (post.slug) {
-        const detailResponse = await api.get(`/posts/${post.slug}`);
-        setAttachedPolls(detailResponse.data.data.attachedPolls || []);
-        setAttachedReleases(detailResponse.data.data.attachedReleases || []);
+        const detailRes = await request(() => api.get(`/posts/${post.slug}`));
+        setAttachedPolls(detailRes.data.data.attachedPolls || []);
+        setAttachedReleases(detailRes.data.data.attachedReleases || []);
       }
-    } catch (error) {
-      console.error('Error fetching post:', error);
-      toast.error('Failed to load post');
-      navigate('/admin/posts');
-    } finally {
-      setLoading(false);
-    }
+    } catch {}
   };
 
   const fetchAvailablePolls = async (projectId) => {
     try {
       const params = projectId ? { project_id: projectId } : {};
-      const response = await api.get('/polls/available', { params });
-      setAvailablePolls(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching polls:', error);
-    }
+      const res = await request(() => api.get('/polls/available', { params }));
+      setAvailablePolls(res.data.data || []);
+    } catch {}
   };
 
   const fetchAvailableReleases = async (projectId) => {
     try {
-      const response = await api.get(`/releases`, {
+      const res = await request(() => api.get(`/releases`, {
         params: { project_id: projectId }
-      });
-      setAvailableReleases(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching releases:', error);
-    }
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value
-    }));
-    if (errors[name]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: ''
       }));
-    }
+      setAvailableReleases(res.data.data || []);
+    } catch {}
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
-    }
-
-    if (!formData.content.trim()) {
-      newErrors.content = 'Content is required';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   // Poll handlers
   const handleSelectPoll = (poll) => {
@@ -231,23 +198,16 @@ const PostForm = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!validateForm()) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
+  const handleSubmit = form.handleSubmit(async (values) => {
     try {
       setSaving(true);
 
       if (isEditMode) {
-        await api.put(`/posts/${id}`, formData);
+        await api.put(`/posts/${id}`, values);
         toast.success('Post updated successfully');
         navigate('/admin/posts');
       } else {
-        const response = await api.post('/posts', formData);
+        const response = await api.post('/posts', values);
         const newPostId = response.data.data.id;
 
         if (selectedPolls.length > 0) {
@@ -275,7 +235,7 @@ const PostForm = () => {
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   const handleCancel = () => {
     if (window.confirm('Are you sure you want to cancel? Unsaved changes will be lost.')) {
@@ -316,14 +276,14 @@ const PostForm = () => {
             <input
               type="text"
               name="title"
-              value={formData.title}
-              onChange={handleChange}
+              value={form.form.title}
+              onChange={form.handleChange}
               className={`w-full bg-neutral-800 border ${
-                errors.title ? 'border-red-500' : 'border-neutral-700'
+                form.errors.title ? 'border-red-500' : 'border-neutral-700'
               } rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500`}
               placeholder="Enter post title"
             />
-            {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
+            {form.errors.title && <p className="text-red-500 text-sm mt-1">{form.errors.title}</p>}
           </div>
 
           <div className="mb-6">
@@ -332,8 +292,8 @@ const PostForm = () => {
             </label>
             <select
               name="project_id"
-              value={formData.project_id || ''}
-              onChange={handleChange}
+              value={form.form.project_id || ''}
+              onChange={form.handleChange}
               className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 appearance-none cursor-pointer"
             >
               <option value="">No Project (General Feed)</option>
@@ -354,8 +314,8 @@ const PostForm = () => {
             </label>
             <textarea
               name="excerpt"
-              value={formData.excerpt}
-              onChange={handleChange}
+              value={form.form.excerpt}
+              onChange={form.handleChange}
               rows="3"
               className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 resize-none"
               placeholder="Brief summary of the post (optional)"
@@ -378,21 +338,21 @@ const PostForm = () => {
 
             {showPreview ? (
               <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-4 min-h-[400px] whitespace-pre-wrap">
-                {formData.content}
+                {form.form.content}
               </div>
             ) : (
               <textarea
                 name="content"
-                value={formData.content}
-                onChange={handleChange}
+                value={form.form.content}
+                onChange={form.handleChange}
                 rows="15"
                 className={`w-full bg-neutral-800 border ${
-                  errors.content ? 'border-red-500' : 'border-neutral-700'
+                  form.errors.content ? 'border-red-500' : 'border-neutral-700'
                 } rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 resize-none font-mono text-sm`}
                 placeholder="Write your post content here..."
               />
             )}
-            {errors.content && <p className="text-red-500 text-sm mt-1">{errors.content}</p>}
+            {form.errors.content && <p className="text-red-500 text-sm mt-1">{form.errors.content}</p>}
           </div>
 
           <div className="mb-6">
@@ -401,8 +361,8 @@ const PostForm = () => {
             </label>
             <select
               name="status"
-              value={formData.status}
-              onChange={handleChange}
+              value={form.form.status}
+              onChange={form.handleChange}
               className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 appearance-none cursor-pointer"
             >
               <option value="draft">Draft (Hidden from public)</option>
@@ -456,7 +416,7 @@ const PostForm = () => {
         </div>
 
         {/* Releases Section */}
-        {formData.project_id && (
+        {form.form.project_id && (
           <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
@@ -505,18 +465,27 @@ const PostForm = () => {
         {/* Save/Cancel Buttons */}
         <div className="flex gap-4">
           <button
-            type="button"
-            onClick={handleCancel}
-            className="flex-1 px-6 py-3 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition"
-          >
-            <FiX /> Cancel
-          </button>
-          <button
             type="submit"
             disabled={saving}
-            className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-neutral-700 text-white px-6 py-3 rounded-lg font-medium transition"
           >
-            <FiSave /> {saving ? 'Saving...' : isEditMode ? 'Update Post' : 'Create Post'}
+            {saving ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                <span>{isEditMode ? 'Saving...' : 'Creating...'}</span>
+              </>
+            ) : (
+              <>
+                {isEditMode ? 'Update Post' : 'Create Post'}
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-6 py-3 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg font-medium transition"
+          >
+            Cancel
           </button>
         </div>
       </form>

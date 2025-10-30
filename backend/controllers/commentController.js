@@ -1,4 +1,6 @@
 const { Comment, Post, User, Project, CommentHistory } = require('../models');
+const { validateFields } = require('../utils/validate');
+const { success, error } = require('../utils/response');
 
 // @desc    Get all comments (Admin only)
 // @route   GET /api/comments
@@ -78,54 +80,27 @@ const getCommentsByPost = async (req, res) => {
 // @access  Private
 const createComment = async (req, res) => {
   try {
-    const { post_id, parent_id, content } = req.body;
-
-    // Validation
-    if (!post_id || !content) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide post_id and content'
-      });
+    const validationError = validateFields(req.body, ['post_id', 'content']);
+    if (validationError) {
+      return error(res, validationError, 400);
     }
-
     // Check if post exists
-    const post = await Post.findByPk(post_id);
+    const post = await Post.findByPk(req.body.post_id);
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
+      return error(res, 'Post not found', 404);
     }
-
     const comment = await Comment.create({
-      post_id,
+      post_id: req.body.post_id,
       user_id: req.user.id,
-      parent_id: parent_id || null,
-      content
+      parent_id: req.body.parent_id || null,
+      content: req.body.content
     });
-
-    // Return comment with user info
     const commentWithUser = await Comment.findByPk(comment.id, {
-      include: [
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'username']
-        }
-      ]
+      include: [{ model: User, as: 'user', attributes: ['id', 'username'] }]
     });
-
-    res.status(201).json({
-      success: true,
-      message: 'Comment created successfully',
-      data: commentWithUser
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, commentWithUser, 'Comment created successfully', 201);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -135,53 +110,18 @@ const createComment = async (req, res) => {
 const updateComment = async (req, res) => {
   try {
     const { content } = req.body;
-
-    if (!content) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide content'
-      });
-    }
-
+    if (!content) return error(res, 'Please provide content', 400);
     const comment = await Comment.findByPk(req.params.id);
-
-    if (!comment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Comment not found'
-      });
-    }
-
-    // Check if user owns the comment or is admin
+    if (!comment) return error(res, 'Comment not found', 404);
     if (comment.user_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this comment'
-      });
+      return error(res, 'Not authorized to update this comment', 403);
     }
-
-    // Save old content to history
-    await CommentHistory.create({
-      comment_id: comment.id,
-      content: comment.content,
-      edited_at: new Date()
-    });
-
-    // Update comment
+    await CommentHistory.create({ comment_id: comment.id, content: comment.content, edited_at: new Date() });
     comment.content = content;
     await comment.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Comment updated successfully',
-      data: comment
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, comment, 'Comment updated successfully', 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

@@ -4,6 +4,7 @@ import { FiPlus, FiTrash2, FiSave, FiArrowLeft, FiHome, FiFolder, FiFileText } f
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 import Loading from '../../../components/common/Loading';
+import { request } from '../../../services/request';
 
 const EditPoll = () => {
   const { id } = useParams();
@@ -32,7 +33,8 @@ const EditPoll = () => {
   const fetchPoll = async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/polls/${id}`);
+      const response = await request(() => api.get(`/polls/${id}`), (msg) => toast.error('Failed to load poll'));
+      if (!response) return;
       const poll = response.data.data;
       
       setFormData({
@@ -48,23 +50,14 @@ const EditPoll = () => {
       if (poll.options && poll.options.length > 0) {
         setOptions(poll.options.map(opt => opt.option_text));
       }
-    } catch (error) {
-      console.error('Error fetching poll:', error);
-      toast.error('Failed to load poll');
-      navigate('/admin/polls');
     } finally {
       setLoading(false);
     }
   };
 
   const fetchProjects = async () => {
-    try {
-      const response = await api.get('/projects');
-      setProjects(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects');
-    }
+    const response = await request(() => api.get('/projects'), (msg) => toast.error('Failed to load projects'));
+    if (response) setProjects(response.data.data || []);
   };
 
   const handleInputChange = (e) => {
@@ -142,12 +135,9 @@ const EditPoll = () => {
         pollData.end_date = null;
       }
 
-      await api.put(`/polls/${id}`, pollData);
+      await request(() => api.put(`/polls/${id}`, pollData), (msg) => toast.error(msg || 'Failed to update poll'));
       toast.success('Poll updated successfully!');
       navigate('/admin/polls');
-    } catch (error) {
-      console.error('Error updating poll:', error);
-      toast.error(error.response?.data?.message || 'Failed to update poll');
     } finally {
       setSaving(false);
     }

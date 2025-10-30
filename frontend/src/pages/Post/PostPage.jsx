@@ -9,194 +9,15 @@ import ErrorMessage from '../../components/common/ErrorMessage';
 import { formatDate, getVoteCount } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import { request } from '../../services/request';
+import { useFormHandler } from '../../utils/useFormHandler';
 import PostPolls from '../../components/post/PostPolls';
 import PostReleases from '../../components/post/PostReleases';
-
-// Edit History Modal Component
-const EditHistoryModal = memo(({ commentId, onClose }) => {
-  const [history, setHistory] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const response = await api.get(`/comments/${commentId}/history`);
-        setHistory(response.data.data);
-      } catch (error) {
-        console.error('Error fetching history:', error);
-        toast.error('Failed to load edit history');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchHistory();
-  }, [commentId]);
-
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-neutral-900 border border-gray-700 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <h3 className="text-lg font-medium text-white">Edit History</h3>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-gray-800 rounded transition"
-          >
-            <FiX className="text-gray-400" size={20} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-            </div>
-          ) : history ? (
-            <div className="space-y-4">
-              {/* Current Version */}
-              <div className="bg-gray-800/50 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs font-medium text-green-400">CURRENT</span>
-                  <FiClock className="text-gray-500" size={12} />
-                  <span className="text-xs text-gray-500">Now</span>
-                </div>
-                <p className="text-sm text-white">{history.current}</p>
-              </div>
-
-              {/* Previous Versions */}
-              {history.history && history.history.length > 0 ? (
-                history.history.map((item, index) => (
-                  <div key={item.id} className="bg-gray-800/30 rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-medium text-gray-400">
-                        VERSION {history.history.length - index}
-                      </span>
-                      <FiClock className="text-gray-500" size={12} />
-                      <span className="text-xs text-gray-500">
-                        {formatDate(item.edited_at)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-300">{item.content}</p>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-500">No edit history</p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Failed to load history</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-});
-
-// Edit Form Component
-const EditForm = memo(({ commentId, initialContent, onSubmit, onCancel }) => {
-  const [editText, setEditText] = useState(initialContent);
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (editText.trim()) {
-      onSubmit(commentId, editText);
-    }
-  };
-
-  return (
-    <div className="mb-2">
-      <textarea
-        value={editText}
-        onChange={(e) => setEditText(e.target.value)}
-        rows="3"
-        autoFocus
-        className="w-full bg-black border border-gray-700 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-gray-500 resize-none"
-      />
-      <div className="flex justify-end gap-2 mt-2">
-        <button
-          type="button"
-          onClick={() => {
-            setEditText(initialContent);
-            onCancel();
-          }}
-          className="px-3 py-1 text-xs border border-gray-700 hover:bg-gray-900 text-white rounded transition"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!editText.trim()}
-          className="px-3 py-1 text-xs bg-white text-black hover:bg-gray-200 rounded transition disabled:opacity-50"
-        >
-          Save
-        </button>
-      </div>
-    </div>
-  );
-});
-
-// Reply Form Component
-const ReplyForm = memo(({ commentId, onSubmit, onCancel, submitting, user }) => {
-  const [replyText, setReplyText] = useState('');
-
-  if (!user) {
-    return (
-      <div className="mt-4 p-4 border border-gray-700 rounded-lg text-center">
-        <p className="text-gray-400">
-          Please <Link to="/login" className="text-white hover:text-gray-400 underline">login</Link> to reply
-        </p>
-      </div>
-    );
-  }
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (replyText.trim()) {
-      onSubmit(commentId, replyText);
-      setReplyText('');
-    }
-  };
-
-  return (
-    <div className="mt-4">
-      <textarea
-        value={replyText}
-        onChange={(e) => setReplyText(e.target.value)}
-        placeholder="Write a reply..."
-        rows="3"
-        autoFocus
-        className="w-full bg-black border border-gray-700 rounded-lg px-3 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-gray-500 resize-none"
-      />
-      <div className="flex justify-end gap-2 mt-2">
-        <button
-          type="button"
-          onClick={() => {
-            setReplyText('');
-            onCancel();
-          }}
-          className="px-4 py-2 border border-gray-700 hover:bg-gray-900 text-white rounded transition"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={submitting || !replyText.trim()}
-          className="px-4 py-2 bg-white text-black hover:bg-gray-200 rounded transition disabled:opacity-50"
-        >
-          {submitting ? 'Posting...' : 'Reply'}
-        </button>
-      </div>
-    </div>
-  );
-});
+import EditHistoryModal from './PostPage/EditHistoryModal';
+import EditForm from './PostPage/EditForm';
+import ReplyForm from './PostPage/ReplyForm';
+import CommentItem from './PostPage/CommentItem';
+import SeoHead from '../../components/common/SeoHead';
 
 const PostPage = () => {
   const { slug, postSlug } = useParams();
@@ -205,9 +26,15 @@ const PostPage = () => {
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [commentText, setCommentText] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState(null);
+  
+  const commentForm = useFormHandler({ content: '' }, (values) => {
+    const errors = {};
+    if (!values.content?.trim()) {
+      errors.content = 'Comment cannot be empty';
+    }
+    return errors;
+  });
   const [replyingTo, setReplyingTo] = useState(null);
   const [votingComment, setVotingComment] = useState(null);
   const [votingPost, setVotingPost] = useState(false);
@@ -235,14 +62,11 @@ const PostPage = () => {
 
   const fetchPost = async () => {
     try {
-      setLoading(true);
       setError(null);
-      const data = await getPostBySlug(postSlug);
+      const data = await request(() => getPostBySlug(postSlug), setError, setLoading);
       setPost(data);
     } catch (err) {
-      setError(err.response?.data?.message || 'Error loading post');
-    } finally {
-      setLoading(false);
+      // setError already handled in request()
     }
   };
 
@@ -272,37 +96,27 @@ const PostPage = () => {
     return rootComments;
   };
 
-  const handleSubmitComment = async (e, parentId = null) => {
-    e.preventDefault();
-    
+  const handleSubmitComment = commentForm.handleSubmit(async (values) => {
     if (!user) {
       toast.error('Please login to comment');
       return;
     }
 
-    if (!commentText.trim()) {
-      toast.error('Comment cannot be empty');
-      return;
-    }
-
     try {
-      setSubmitting(true);
       await createComment({
         post_id: post.id,
-        parent_id: parentId,
-        content: commentText
+        parent_id: null,
+        content: values.content
       });
       
       toast.success('Comment posted successfully');
-      setCommentText('');
+      commentForm.resetForm();
       fetchPost();
     } catch (error) {
       console.error('Error posting comment:', error);
       toast.error(error.response?.data?.message || 'Failed to post comment');
-    } finally {
-      setSubmitting(false);
     }
-  };
+  });
 
   const handleSubmitReply = async (parentId, content) => {
     if (!user) {
@@ -311,7 +125,6 @@ const PostPage = () => {
     }
 
     try {
-      setSubmitting(true);
       await createComment({
         post_id: post.id,
         parent_id: parentId,
@@ -324,8 +137,6 @@ const PostPage = () => {
     } catch (error) {
       console.error('Error posting reply:', error);
       toast.error(error.response?.data?.message || 'Failed to post reply');
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -480,190 +291,13 @@ const PostPage = () => {
     return updated - created > 1000;
   };
 
-  // Comment Item Component
-  const CommentItem = ({ comment, depth = 0 }) => {
-    const voteScore = getVoteCount(comment.upvotes, comment.downvotes);
-    const isVoting = votingComment === comment.id;
-    const isExpanded = expandedComments.has(comment.id);
-    const replyCount = countReplies(comment);
-    const isDeleted = comment.is_deleted || comment.content === '[deleted]';
-    const isEdited = hasBeenEdited(comment);
-
-    return (
-      <div className={`relative ${depth > 0 ? 'ml-6' : ''}`}>
-        {depth > 0 && (
-          <div 
-            className="absolute left-0 top-0 bottom-0 w-0.5 bg-gray-800 hover:bg-purple-600 transition cursor-pointer"
-            onClick={() => toggleExpand(comment.id)}
-            title="Click to toggle replies"
-          />
-        )}
-
-        <div className={`${depth > 0 ? 'pl-6' : ''} ${depth === 0 ? 'border-t border-gray-700 pt-4' : 'pt-2'}`}>
-          <div className="flex items-start gap-3">
-            <div className="flex flex-col items-center gap-1 pt-1">
-              <button
-                onClick={() => handleVote(comment.id, 'upvote')}
-                disabled={!user || isVoting || isDeleted}
-                className="p-1 hover:bg-gray-900 rounded transition disabled:opacity-50"
-              >
-                <FiArrowUp className="text-gray-400 hover:text-green-500" size={16} />
-              </button>
-              <span className={`text-xs font-medium ${
-                voteScore > 0 ? 'text-green-500' : 
-                voteScore < 0 ? 'text-red-500' : 
-                'text-gray-400'
-              }`}>
-                {voteScore}
-              </span>
-              <button
-                onClick={() => handleVote(comment.id, 'downvote')}
-                disabled={!user || isVoting || isDeleted}
-                className="p-1 hover:bg-gray-900 rounded transition disabled:opacity-50"
-              >
-                <FiArrowDown className="text-gray-400 hover:text-red-500" size={16} />
-              </button>
-            </div>
-
-              <div className="flex-1 min-w-0">
-                {isDeleted ? (
-                  <div className="flex flex-col justify-center min-h-[80px]">
-                    {replyCount > 0 && (
-                      <div className="mb-2">
-                        <button
-                          onClick={() => toggleExpand(comment.id)}
-                          className="text-xs text-gray-500 hover:text-purple-400 transition font-medium"
-                        >
-                          {isExpanded 
-                            ? '[hide replies]'
-                            : `[show ${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}]`
-                          }
-                        </button>
-                      </div>
-                    )}
-                    
-                    <p className="text-sm text-gray-500 italic">
-                      Comment deleted by user
-                    </p>
-                  </div>
-                ) : (
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <div className="w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0">
-                    {comment.user?.username?.charAt(0).toUpperCase() || 'A'}
-                  </div>
-
-                  <span className="text-sm font-medium text-white">
-                    {comment.user?.username || 'Anonymous'}
-                  </span>
-
-                  <span className="text-xs text-gray-500">
-                    {formatDate(comment.created_at)}
-                  </span>
-
-                  {isEdited && (
-                    <button
-                      onClick={() => setHistoryModalCommentId(comment.id)}
-                      className="text-xs text-gray-500 hover:text-purple-400 transition italic"
-                      title="View edit history"
-                    >
-                      [edited]
-                    </button>
-                  )}
-
-                  {replyCount > 0 && (
-                    <button
-                      onClick={() => toggleExpand(comment.id)}
-                      className="text-xs text-gray-500 hover:text-purple-400 transition font-medium"
-                    >
-                      {isExpanded 
-                        ? '[hide replies]'
-                        : `[show ${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}]`
-                      }
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {!isDeleted && (
-                <>
-                  {editingCommentId === comment.id ? (
-                    <EditForm
-                      commentId={comment.id}
-                      initialContent={comment.content}
-                      onSubmit={handleUpdateComment}
-                      onCancel={() => setEditingCommentId(null)}
-                    />
-                  ) : (
-                    <>
-                      <p className="text-sm mb-2 text-gray-300">
-                        {comment.content}
-                      </p>
-                      
-                      <div className="flex items-center gap-3">
-                        {user && (
-                          <button
-                            onClick={() => setReplyingTo(comment.id)}
-                            className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition"
-                          >
-                            <FiMessageSquare size={12} />
-                            Reply
-                          </button>
-                        )}
-                        
-                        {canModifyComment(comment) && (
-                          <>
-                            <button
-                              onClick={() => setEditingCommentId(comment.id)}
-                              className="flex items-center gap-1 text-xs text-gray-400 hover:text-white transition"
-                            >
-                              <FiEdit2 size={12} />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleDeleteComment(comment.id)}
-                              className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-400 transition"
-                            >
-                              <FiTrash2 size={12} />
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {replyingTo === comment.id && (
-                    <ReplyForm
-                      commentId={comment.id}
-                      onSubmit={handleSubmitReply}
-                      onCancel={() => setReplyingTo(null)}
-                      submitting={submitting}
-                      user={user}
-                    />
-                  )}
-                </>
-              )}
-
-              {isExpanded && comment.replies && comment.replies.length > 0 && (
-                <div className="mt-2">
-                  {comment.replies.map((reply) => (
-                    <CommentItem key={reply.id} comment={reply} depth={depth + 1} />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   if (loading) return <Loading />;
   if (error) return <ErrorMessage message={error} />;
   if (!post) return <ErrorMessage message="Post not found" />;
 
   const voteCount = getVoteCount(post.upvotes, post.downvotes);
   const organizedComments = post.comments ? organizeComments(post.comments) : [];
+  const pageDesc = post.excerpt || (post.content ? String(post.content).slice(0, 150) : '');
 
   // Navigation items for project sidebar
   const navItems = post.project ? [
@@ -675,6 +309,7 @@ const PostPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      <SeoHead pageTitle={post.title} pageDescription={pageDesc} />
       {historyModalCommentId && (
         <EditHistoryModal
           commentId={historyModalCommentId}
@@ -842,21 +477,25 @@ const PostPage = () => {
             </h2>
             
             {user ? (
-              <form onSubmit={(e) => handleSubmitComment(e)} className="mb-8">
+              <form onSubmit={handleSubmitComment} className="mb-8">
                 <textarea
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
+                  name="content"
+                  value={commentForm.form.content}
+                  onChange={commentForm.handleChange}
                   placeholder="What are your thoughts?"
                   rows="4"
                   className="w-full bg-black border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-500 resize-none"
                 />
+                {commentForm.errors.content && (
+                  <p className="text-red-400 text-sm mt-1">{commentForm.errors.content}</p>
+                )}
                 <div className="flex justify-end mt-3">
                   <button
                     type="submit"
-                    disabled={submitting || !commentText.trim()}
+                    disabled={commentForm.loading || !commentForm.form.content?.trim()}
                     className="px-6 py-2 bg-white text-black hover:bg-gray-200 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {submitting ? 'Posting...' : 'Comment'}
+                    {commentForm.loading ? 'Posting...' : 'Comment'}
                   </button>
                 </div>
               </form>
@@ -871,7 +510,39 @@ const PostPage = () => {
             {organizedComments.length > 0 ? (
               <div className="space-y-4">
                 {organizedComments.map((comment) => (
-                  <CommentItem key={comment.id} comment={comment} depth={0} />
+                  <CommentItem 
+                    key={comment.id} 
+                    comment={comment} 
+                    depth={0} 
+                    onVote={handleVote} 
+                    onReply={handleSubmitReply} 
+                    onEdit={handleUpdateComment} 
+                    onDelete={handleDeleteComment} 
+                    onExpand={toggleExpand} 
+                    expandedComments={expandedComments} 
+                    user={user} 
+                    canModify={canModifyComment} 
+                    hasBeenEdited={hasBeenEdited} 
+                    countReplies={countReplies} 
+                    votingComment={votingComment} 
+                    setVotingComment={setVotingComment} 
+                    editingCommentId={editingCommentId} 
+                    setEditingCommentId={setEditingCommentId} 
+                    replyingTo={replyingTo} 
+                    setReplyingTo={setReplyingTo} 
+                    submitting={commentForm.loading} 
+                    EditForm={EditForm} 
+                    ReplyForm={ReplyForm} 
+                    formatDate={formatDate} 
+                    historyModalCommentId={historyModalCommentId} 
+                    setHistoryModalCommentId={setHistoryModalCommentId} 
+                    showScrollTop={showScrollTop} 
+                    setShowScrollTop={setShowScrollTop} 
+                    scrollToTop={scrollToTop} 
+                    updateCommentVotes={updateCommentVotes} 
+                    organizeComments={organizeComments} 
+                    CommentItem={CommentItem} 
+                  />
                 ))}
               </div>
             ) : (

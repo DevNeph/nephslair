@@ -1,4 +1,6 @@
 const { User, Comment, Vote, PollVote } = require('../models');
+const { validateFields } = require('../utils/validate');
+const { success, error } = require('../utils/response');
 
 // @desc    Get all users (Admin only)
 // @route   GET /api/users
@@ -59,41 +61,16 @@ const getUserById = async (req, res) => {
 const updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
-
-    if (!role || !['user', 'admin'].includes(role)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide valid role (user or admin)'
-      });
-    }
-
+    const validationError = validateFields(req.body, ['role']);
+    if (validationError) return error(res, validationError, 400);
+    if (!['user', 'admin'].includes(role)) return error(res, 'Please provide valid role (user or admin)', 400);
     const user = await User.findByPk(req.params.id);
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
+    if (!user) return error(res, 'User not found', 404);
     user.role = role;
     await user.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'User role updated successfully',
-      data: {
-        id: user.id,
-        username: user.username,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, { id: user.id, username: user.username, role: user.role }, 'User role updated successfully', 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

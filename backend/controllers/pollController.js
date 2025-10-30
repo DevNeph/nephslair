@@ -1,5 +1,7 @@
 const { Poll, PollOption, PollVote, Post, User, Project } = require('../models');
 const sequelize = require('../config/database');
+const { validateFields } = require('../utils/validate');
+const { success, error } = require('../utils/response');
 
 // Helper function to format poll options
 const formatPollOptions = async (options, userId = null) => {
@@ -371,29 +373,20 @@ const getAllPolls = async (req, res) => {
 // @access  Private/Admin
 const createPoll = async (req, res) => {
   const transaction = await sequelize.transaction();
-
   try {
     const { project_id, question, options, is_active, end_date, show_on_homepage, is_standalone } = req.body;
-
-    if (!question || !options || !Array.isArray(options) || options.length < 2) {
+    const validationError = validateFields(req.body, ['question', 'options']);
+    if (validationError || !Array.isArray(options) || options.length < 2) {
       await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide question and at least 2 options'
-      });
+      return error(res, 'Please provide question and at least 2 options', 400);
     }
-
     if (project_id) {
       const project = await Project.findByPk(project_id);
       if (!project) {
         await transaction.rollback();
-        return res.status(404).json({
-          success: false,
-          message: 'Project not found'
-        });
+        return error(res, 'Project not found', 404);
       }
     }
-
     const poll = await Poll.create({
       project_id: project_id || null,
       question,
@@ -402,38 +395,25 @@ const createPoll = async (req, res) => {
       is_active: is_active !== undefined ? is_active : true,
       end_date: end_date || null
     }, { transaction });
-
     const pollOptions = await Promise.all(
-      options.map(option => 
-        PollOption.create({
-          poll_id: poll.id,
-          option_text: option,
-          votes_count: 0
-        }, { transaction })
-      )
+      options.map(option => PollOption.create({
+        poll_id: poll.id,
+        option_text: option,
+        votes_count: 0
+      }, { transaction }))
     );
-
     await transaction.commit();
-
-    res.status(201).json({
-      success: true,
-      message: 'Poll created successfully',
-      data: {
-        ...poll.toJSON(),
-        options: pollOptions.map(opt => ({
-          id: opt.id,
-          option_text: opt.option_text,
-          vote_count: opt.votes_count
-        }))
-      }
-    });
-  } catch (error) {
+    return success(res, {
+      ...poll.toJSON(),
+      options: pollOptions.map(opt => ({
+        id: opt.id,
+        option_text: opt.option_text,
+        vote_count: opt.votes_count
+      }))
+    }, 'Poll created successfully', 201);
+  } catch (err) {
     await transaction.rollback();
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -448,19 +428,13 @@ const votePoll = async (req, res) => {
 
     if (!poll_option_id) {
       await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide poll_option_id'
-      });
+      return error(res, 'Please provide poll_option_id', 400);
     }
 
     let poll = await Poll.findByPk(req.params.id);
     if (!poll) {
       await transaction.rollback();
-      return res.status(404).json({
-        success: false,
-        message: 'Poll not found'
-      });
+      return error(res, 'Poll not found', 404);
     }
 
     // ✅ Auto-finalize if expired
@@ -469,27 +443,18 @@ const votePoll = async (req, res) => {
     // ✅ Check if finalized
     if (poll.is_finalized) {
       await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: 'This poll has been finalized and is no longer accepting votes'
-      });
+      return error(res, 'This poll has been finalized and is no longer accepting votes', 400);
     }
 
     if (!poll.is_active) {
       await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: 'Poll is not active'
-      });
+      return error(res, 'Poll is not active', 400);
     }
 
     const option = await PollOption.findByPk(poll_option_id);
     if (!option || option.poll_id !== poll.id) {
       await transaction.rollback();
-      return res.status(404).json({
-        success: false,
-        message: 'Poll option not found'
-      });
+      return error(res, 'Poll option not found', 404);
     }
 
     const existingVote = await PollVote.findOne({
@@ -506,11 +471,7 @@ const votePoll = async (req, res) => {
         await option.save({ transaction });
         await transaction.commit();
 
-        return res.status(200).json({
-          success: true,
-          message: 'Vote removed',
-          data: { poll_option_id: null }
-        });
+        return success(res, { poll_option_id: null }, 'Vote removed', 200);
       }
 
       const oldOption = await PollOption.findByPk(existingVote.poll_option_id);
@@ -525,11 +486,7 @@ const votePoll = async (req, res) => {
 
       await transaction.commit();
 
-      return res.status(200).json({
-        success: true,
-        message: 'Vote updated successfully',
-        data: { poll_option_id }
-      });
+      return success(res, { poll_option_id }, 'Vote updated successfully', 200);
     }
 
     await PollVote.create({
@@ -543,18 +500,10 @@ const votePoll = async (req, res) => {
 
     await transaction.commit();
 
-    res.status(201).json({
-      success: true,
-      message: 'Vote created successfully',
-      data: { poll_option_id }
-    });
+    return success(res, { poll_option_id }, 'Vote created successfully', 201);
   } catch (error) {
     await transaction.rollback();
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return error(res, 'Server error', 500, error.message);
   }
 };
 
@@ -675,78 +624,80 @@ const finalizePoll = async (req, res) => {
 // @access  Private/Admin
 const updatePoll = async (req, res) => {
   const transaction = await sequelize.transaction();
-
   try {
-    const { question, options, is_active, end_date, show_on_homepage, is_standalone, project_id } = req.body;
-
-    const poll = await Poll.findByPk(req.params.id);
-
+    const { question, options: incomingOptions, is_active, end_date, show_on_homepage, is_standalone, project_id } = req.body;
+    const poll = await Poll.findByPk(req.params.id, { include: [{ model: PollOption, as: 'options' }] });
     if (!poll) {
       await transaction.rollback();
-      return res.status(404).json({
-        success: false,
-        message: 'Poll not found'
-      });
+      return error(res, 'Poll not found', 404);
     }
-
-    if (!question || !options || !Array.isArray(options) || options.length < 2) {
+    if (!question || !incomingOptions || !Array.isArray(incomingOptions) || incomingOptions.length < 2) {
       await transaction.rollback();
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide question and at least 2 options'
-      });
+      return error(res, 'Please provide question and at least 2 options', 400);
+    }
+    // 1. Mevcut seçeneklerle/request'ten gelenleri eşle (option_text => id bağını korumak için)
+    const oldOptions = poll.options;
+    const oldOptionsMap = {};
+    oldOptions.forEach(opt => { oldOptionsMap[opt.option_text] = opt; });
+
+    // ileri: metni değişmiş fakat aynı id'de korunması gereken seçenekleri güncelle
+    for (const [index, text] of incomingOptions.entries()) {
+      // Eğer bu option'un id'si varsa ve text'i farklıysa, güncelle
+      let matchingOption = oldOptions[index];
+      if (matchingOption && matchingOption.option_text !== text) {
+        matchingOption.option_text = text;
+        await matchingOption.save({ transaction });
+      }
+    }
+    // eski diff kodu korunsun
+    const optionsToKeep = incomingOptions.filter(text => !!oldOptionsMap[text]);
+    const optionsToAdd = incomingOptions.filter(text => !oldOptionsMap[text]);
+    const optionsToDelete = oldOptions.filter(opt => !incomingOptions.includes(opt.option_text));
+
+    // 2. Texti aynı kalanlar aynı şekilde kalır
+    // (option_text'leri değişen ama id'si korunacak olanları da güncellemek için)
+    for (const opt of oldOptions) {
+      // Eğer aynı metin varsa hiç elleme
+      if (optionsToKeep.includes(opt.option_text)) continue;
+      // Eğer id korunarak text güncellenecekse (gelişmiş diff gerekirdi) — biz sadeleştiriyoruz
     }
 
+    // 3. Yeni eklenenleri oluştur
+    const createdOptions = [];
+    for (const text of optionsToAdd) {
+      createdOptions.push(await PollOption.create({ poll_id: poll.id, option_text: text, votes_count: 0 }, { transaction }));
+    }
+
+    // 4. Silinen eski seçeneklerin votes'larını sil, seçeneği de sil
+    for (const deletedOpt of optionsToDelete) {
+      await PollVote.destroy({ where: { poll_option_id: deletedOpt.id }, transaction });
+      await deletedOpt.destroy({ transaction });
+    }
+
+    // 5. Poll ana alanlarını güncelle
     poll.question = question;
     poll.show_on_homepage = show_on_homepage || false;
     poll.is_standalone = is_standalone !== undefined ? is_standalone : true;
     poll.is_active = is_active !== undefined ? is_active : true;
     poll.project_id = project_id || null;
     poll.end_date = end_date || null;
-    
     await poll.save({ transaction });
 
-    await PollOption.destroy({
-      where: { poll_id: poll.id },
-      transaction
-    });
-
-    await PollVote.destroy({
-      where: { poll_id: poll.id },
-      transaction
-    });
-
-    const pollOptions = await Promise.all(
-      options.map(option => 
-        PollOption.create({
-          poll_id: poll.id,
-          option_text: option,
-          votes_count: 0
-        }, { transaction })
-      )
-    );
+    // 6. Sonuç options listesini votes_count ile hazırla
+    const finalOptions = await PollOption.findAll({ where: { poll_id: poll.id }, transaction });
 
     await transaction.commit();
-
-    res.status(200).json({
-      success: true,
-      message: 'Poll updated successfully',
-      data: {
-        ...poll.toJSON(),
-        options: pollOptions.map(opt => ({
-          id: opt.id,
-          option_text: opt.option_text,
-          vote_count: opt.votes_count
-        }))
-      }
-    });
-  } catch (error) {
+    return success(res, {
+      ...poll.toJSON(),
+      options: finalOptions.map(opt => ({
+        id: opt.id,
+        option_text: opt.option_text,
+        votes_count: opt.votes_count
+      }))
+    }, 'Poll updated successfully', 200);
+  } catch (err) {
     await transaction.rollback();
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

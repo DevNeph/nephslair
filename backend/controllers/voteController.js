@@ -1,5 +1,7 @@
 const { Vote, Post } = require('../models');
 const { Op } = require('sequelize');
+const { validateFields } = require('../utils/validate');
+const { success, error } = require('../utils/response');
 
 // @desc    Vote on a post (upvote/downvote)
 // @route   POST /api/votes
@@ -7,29 +9,17 @@ const { Op } = require('sequelize');
 const votePost = async (req, res) => {
   try {
     const { post_id, vote_type } = req.body;
-
-    // Validation
-    if (!post_id || !vote_type) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide post_id and vote_type'
-      });
-    }
+    const validationError = validateFields(req.body, ['post_id', 'vote_type']);
+    if (validationError) return error(res, validationError, 400);
 
     if (!['upvote', 'downvote'].includes(vote_type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'vote_type must be either upvote or downvote'
-      });
+      return error(res, 'vote_type must be either upvote or downvote', 400);
     }
 
     // Check if post exists
     const post = await Post.findByPk(post_id);
     if (!post) {
-      return res.status(404).json({
-        success: false,
-        message: 'Post not found'
-      });
+      return error(res, 'Post not found', 404);
     }
 
     // Check if user already voted
@@ -53,11 +43,7 @@ const votePost = async (req, res) => {
         }
         await post.save();
 
-        return res.status(200).json({
-          success: true,
-          message: 'Vote removed',
-          data: { post_id, vote_type: null, upvotes: post.upvotes, downvotes: post.downvotes }
-        });
+        return success(res, 'Vote removed', { post_id, vote_type: null, upvotes: post.upvotes, downvotes: post.downvotes });
       }
 
       // If different vote type, update vote
@@ -75,11 +61,7 @@ const votePost = async (req, res) => {
       }
       await post.save();
 
-      return res.status(200).json({
-        success: true,
-        message: 'Vote updated',
-        data: { post_id, vote_type, upvotes: post.upvotes, downvotes: post.downvotes }
-      });
+      return success(res, 'Vote updated', { post_id, vote_type, upvotes: post.upvotes, downvotes: post.downvotes });
     }
 
     // Create new vote
@@ -97,17 +79,9 @@ const votePost = async (req, res) => {
     }
     await post.save();
 
-    res.status(201).json({
-      success: true,
-      message: 'Vote created successfully',
-      data: { post_id, vote_type, upvotes: post.upvotes, downvotes: post.downvotes }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, 'Vote created successfully', { post_id, vote_type, upvotes: post.upvotes, downvotes: post.downvotes });
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -124,22 +98,12 @@ const getUserVote = async (req, res) => {
     });
 
     if (!vote) {
-      return res.status(200).json({
-        success: true,
-        data: { vote_type: null }
-      });
+      return success(res, 'Vote not found', { vote_type: null });
     }
 
-    res.status(200).json({
-      success: true,
-      data: { vote_type: vote.vote_type }
-    });
+    return success(res, 'Vote found', { vote_type: vote.vote_type });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return error(res, 'Server error', 500, error.message);
   }
 };
 

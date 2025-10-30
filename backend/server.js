@@ -60,6 +60,7 @@ app.use('/api/polls', require('./routes/polls'));
 app.use('/api/releases', require('./routes/releases'));
 app.use('/api/upload', require('./routes/upload'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/settings', require('./routes/settings'));
 
 
 // 404 Handler

@@ -116,6 +116,12 @@ const handleFileUpload = async (e) => {
   const file = e.target.files[0];
   if (!file) return;
 
+  if (!newFile.platform || !newFile.platform.trim()) {
+    toast.error('Please select a platform first');
+    e.target.value = '';
+    return;
+  }
+
   try {
     setUploading(true);
     setUploadProgress(0);
@@ -279,6 +285,12 @@ const handleFileUpload = async (e) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Prevent orphan file: uploaded but not added to release
+    if (newFile.file_url && newFile.file_name && newFile.platform) {
+      toast.error('You have an uploaded file pending. Please click "Add File to Release" or remove it before saving.');
+      return;
+    }
 
     if (!validateForm()) {
       toast.error('Please fill in all required fields');
@@ -549,7 +561,7 @@ const handleFileUpload = async (e) => {
             <input
               type="file"
               onChange={handleFileUpload}
-              disabled={uploading}
+              disabled={uploading || !newFile.platform}
               className="hidden"
               accept=".zip,.rar,.tar,.gz,.7z,.exe,.dmg,.pdf,.txt,.deb,.rpm,.pkg,.appimage"
             />
@@ -588,6 +600,12 @@ const handleFileUpload = async (e) => {
               <FiX size={18} />
             </button>
           </div>
+        )}
+        {newFile.file_url && newFile.file_name && (
+          <p className="mt-2 text-xs text-yellow-400">Pending file not yet added to release. Please click "Add File to Release" or remove it before saving.</p>
+        )}
+        {(!newFile.platform || !newFile.platform.trim()) && !uploading && (
+          <p className="mt-2 text-xs text-yellow-400">Please select a platform before uploading a file.</p>
         )}
       </div>
 
@@ -677,13 +695,21 @@ const handleFileUpload = async (e) => {
           >
             <FiX /> Cancel
           </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <FiSave /> {saving ? 'Saving...' : isEditMode ? 'Update Release' : 'Create Release'}
-          </button>
+          {(() => {
+            const hasPendingFile = !!newFile.file_url && !!newFile.file_name && !!newFile.platform;
+            const tooltip = hasPendingFile ? 'Pending file not yet added to release. Click "Add File to Release" or remove it.' : undefined;
+            return (
+              <button
+                type="submit"
+                disabled={saving || hasPendingFile}
+                title={tooltip}
+                aria-label={tooltip}
+                className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FiSave /> {saving ? 'Saving...' : isEditMode ? 'Update Release' : 'Create Release'}
+              </button>
+            );
+          })()}
         </div>
       </form>
 

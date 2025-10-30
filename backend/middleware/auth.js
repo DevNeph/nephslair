@@ -1,53 +1,44 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
+const { error } = require('../utils/response');
 
 const auth = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
     if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'No authentication token, access denied'
-      });
+      return error(res, 'No authentication token, access denied', 401);
     }
 
-    // Token verify
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Find User
     const user = await User.findByPk(decoded.id, {
-      attributes: { exclude: ['password'] } // 
+      attributes: { exclude: ['password'] }
     });
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User not found'
-      });
+      return error(res, 'User not found', 401);
     }
 
-    // Enter user inf to request
+    // Invalidate token if password has been changed after token issuance
+    if (user.password_changed_at) {
+      const changedAt = new Date(user.password_changed_at).getTime();
+      const issuedAt = (decoded.iat || 0) * 1000;
+      if (issuedAt < changedAt) {
+        return error(res, 'Token invalid after password change', 401);
+      }
+    }
+
     req.user = user;
     next();
-  } catch (error) {
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid token'
-      });
+  } catch (err) {
+    if (err.name === 'JsonWebTokenError') {
+      return error(res, 'Invalid token', 401);
     }
-    if (error.name === 'TokenExpiredError') {
-      return res.status(401).json({
-        success: false,
-        message: 'Token expired'
-      });
+    if (err.name === 'TokenExpiredError') {
+      return error(res, 'Token expired', 401);
     }
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

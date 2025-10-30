@@ -128,18 +128,25 @@ const CreateProject = () => {
           </div>
 
           {/* Buttons */}
-          <div className="flex items-center gap-4 pt-4 border-t border-neutral-800">
+          <div className="flex gap-4">
             <button
               type="submit"
               disabled={loading}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:bg-neutral-700 text-white px-6 py-3 rounded-lg font-medium transition"
             >
-              {loading ? 'Creating...' : 'Create Project'}
+              {loading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                  <span>Creating...</span>
+                </>
+              ) : (
+                <>Create Project</>
+              )}
             </button>
             <button
               type="button"
               onClick={() => navigate('/admin/projects')}
-              className="bg-neutral-800 hover:bg-neutral-700 text-white px-6 py-3 rounded-lg font-medium transition"
+              className="px-6 py-3 bg-neutral-800 hover:bg-neutral-700 text-white rounded-lg font-medium transition"
             >
               Cancel
             </button>

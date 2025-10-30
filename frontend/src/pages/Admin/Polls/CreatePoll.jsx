@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiBarChart2, FiArrowLeft, FiHome, FiFolder, FiFileText } from 'react-icons/fi';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
+import { request } from '../../../services/request';
 
 const CreatePoll = () => {
   const navigate = useNavigate();
@@ -26,13 +27,8 @@ const CreatePoll = () => {
   }, []);
 
   const fetchProjects = async () => {
-    try {
-      const response = await api.get('/projects');
-      setProjects(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-      toast.error('Failed to load projects');
-    }
+    const response = await request(() => api.get('/projects'), (msg) => toast.error(msg || 'Failed to load projects'));
+    if (response) setProjects(response.data.data || []);
   };
 
   const handleInputChange = (e) => {
@@ -106,12 +102,9 @@ const CreatePoll = () => {
         pollData.end_date = new Date(formData.end_date).toISOString();
       }
 
-      await api.post('/polls', pollData);
+      await request(() => api.post('/polls', pollData), (msg) => toast.error(msg || 'Failed to create poll'));
       toast.success('Poll created successfully!');
       navigate('/admin/polls');
-    } catch (error) {
-      console.error('Error creating poll:', error);
-      toast.error(error.response?.data?.message || 'Failed to create poll');
     } finally {
       setLoading(false);
     }
@@ -359,7 +352,6 @@ const CreatePoll = () => {
               </>
             ) : (
               <>
-                <FiBarChart2 />
                 <span>Create Poll</span>
               </>
             )}

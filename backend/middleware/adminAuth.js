@@ -1,27 +1,18 @@
+const { error } = require('../utils/response');
+
 const adminAuth = (req, res, next) => {
   try {
-    // Check admin auth from auth
     if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required'
-      });
+      return error(res, 'Authentication required', 401);
     }
 
     if (req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied. Admin privileges required.'
-      });
+      return error(res, 'Access denied. Admin privileges required.', 403);
     }
 
     next();
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 

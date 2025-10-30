@@ -1,14 +1,17 @@
 const { Release, ReleaseFile, Project } = require('../models');
 const path = require('path');
-const fs = require('fs'); 
+const fs = require('fs');
+const { validateFields } = require('../utils/validate');
+const { success, error } = require('../utils/response');
+const { deletePhysicalDownload } = require('../utils/files');
 
 // ✅ Helper function to update project's latest version
 const updateProjectLatestVersion = async (projectId) => {
   try {
     const latestRelease = await Release.findOne({
-      where: { 
+      where: {
         project_id: projectId,
-        is_published: true 
+        is_published: true
       },
       order: [['release_date', 'DESC']],
       attributes: ['version']
@@ -29,7 +32,7 @@ const updateProjectLatestVersion = async (projectId) => {
 const getAllReleases = async (req, res) => {
   try {
     const { project_id } = req.query;
-    
+
     const whereClause = { is_published: true };
     if (project_id) {
       whereClause.project_id = project_id;
@@ -84,9 +87,9 @@ const getReleasesByProject = async (req, res) => {
     }
 
     const releases = await Release.findAll({
-      where: { 
+      where: {
         project_id: project.id,
-        is_published: true 
+        is_published: true
       },
       include: [
         {
@@ -222,35 +225,14 @@ const getReleaseById = async (req, res) => {
 const createRelease = async (req, res) => {
   try {
     const { project_id, version, release_notes, release_date, is_published } = req.body;
-
-    if (!project_id || !version) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide project_id and version'
-      });
-    }
-
+    const validationError = validateFields(req.body, ['project_id', 'version']);
+    if (validationError) return error(res, validationError, 400);
     // Check if project exists
     const project = await Project.findByPk(project_id);
-    if (!project) {
-      return res.status(404).json({
-        success: false,
-        message: 'Project not found'
-      });
-    }
-
+    if (!project) return error(res, 'Project not found', 404);
     // Check if version already exists for this project
-    const existingRelease = await Release.findOne({
-      where: { project_id, version }
-    });
-
-    if (existingRelease) {
-      return res.status(400).json({
-        success: false,
-        message: 'This version already exists for this project'
-      });
-    }
-
+    const existingRelease = await Release.findOne({ where: { project_id, version } });
+    if (existingRelease) return error(res, 'This version already exists for this project', 400);
     const release = await Release.create({
       project_id,
       version,
@@ -258,21 +240,10 @@ const createRelease = async (req, res) => {
       release_date: release_date || new Date(),
       is_published: is_published !== undefined ? is_published : true
     });
-
-    // ✅ Update project's latest version
     await updateProjectLatestVersion(project_id);
-
-    res.status(201).json({
-      success: true,
-      message: 'Release created successfully',
-      data: release
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, release, 'Release created successfully', 201);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -282,37 +253,17 @@ const createRelease = async (req, res) => {
 const updateRelease = async (req, res) => {
   try {
     const { version, release_notes, release_date, is_published } = req.body;
-
     const release = await Release.findByPk(req.params.id);
-
-    if (!release) {
-      return res.status(404).json({
-        success: false,
-        message: 'Release not found'
-      });
-    }
-
+    if (!release) return error(res, 'Release not found', 404);
     if (version) release.version = version;
     if (release_notes !== undefined) release.release_notes = release_notes;
     if (release_date) release.release_date = release_date;
     if (is_published !== undefined) release.is_published = is_published;
-
     await release.save();
-
-    // ✅ Update project's latest version
     await updateProjectLatestVersion(release.project_id);
-
-    res.status(200).json({
-      success: true,
-      message: 'Release updated successfully',
-      data: release
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, release, 'Release updated successfully', 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -322,18 +273,10 @@ const updateRelease = async (req, res) => {
 const deleteRelease = async (req, res) => {
   try {
     const release = await Release.findByPk(req.params.id, {
-      include: [{
-        model: ReleaseFile,
-        as: 'files'
-      }]
+      include: [{ model: ReleaseFile, as: 'files' }]
     });
 
-    if (!release) {
-      return res.status(404).json({
-        success: false,
-        message: 'Release not found'
-      });
-    }
+    if (!release) return error(res, 'Release not found', 404);
 
     const projectId = release.project_id;
 
@@ -341,19 +284,9 @@ const deleteRelease = async (req, res) => {
     if (release.files && release.files.length > 0) {
       for (const file of release.files) {
         try {
-          // Extract filename from URL
           const fileUrl = file.file_url;
           const filename = fileUrl.split('/downloads/').pop();
-          
-          if (filename) {
-            const filePath = path.join(__dirname, '../downloads', filename);
-            
-            // Check if file exists and delete it
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath);
-              console.log(`✅ Deleted physical file: ${filename}`);
-            }
-          }
+          if (filename) deletePhysicalDownload(filename);
         } catch (fileError) {
           console.error(`❌ Error deleting file ${file.file_name}:`, fileError);
         }
@@ -361,20 +294,11 @@ const deleteRelease = async (req, res) => {
     }
 
     await release.destroy();
-
-    // ✅ Update project's latest version
     await updateProjectLatestVersion(projectId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Release and associated files deleted successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'Release and associated files deleted successfully', 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -431,15 +355,8 @@ const updateReleaseFile = async (req, res) => {
     const { platform, file_name, file_url, file_size, file_type } = req.body;
 
     const file = await ReleaseFile.findByPk(req.params.fileId);
+    if (!file) return error(res, 'File not found', 404);
 
-    if (!file) {
-      return res.status(404).json({
-        success: false,
-        message: 'File not found'
-      });
-    }
-
-    // ✅ Store old file info if URL is changing
     const oldFileUrl = file.file_url;
     const isUrlChanging = file_url && file_url !== oldFileUrl;
 
@@ -455,29 +372,15 @@ const updateReleaseFile = async (req, res) => {
     if (isUrlChanging) {
       try {
         const oldFilename = oldFileUrl.split('/downloads/').pop();
-        if (oldFilename) {
-          const oldFilePath = path.join(__dirname, '../downloads', oldFilename);
-          if (fs.existsSync(oldFilePath)) {
-            fs.unlinkSync(oldFilePath);
-            console.log(`✅ Deleted old file: ${oldFilename}`);
-          }
-        }
+        if (oldFilename) deletePhysicalDownload(oldFilename);
       } catch (fileError) {
         console.error('❌ Error deleting old file:', fileError);
       }
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'File updated successfully',
-      data: file
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, file, 'File updated successfully', 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -487,44 +390,20 @@ const updateReleaseFile = async (req, res) => {
 const deleteReleaseFile = async (req, res) => {
   try {
     const file = await ReleaseFile.findByPk(req.params.fileId);
+    if (!file) return error(res, 'File not found', 404);
 
-    if (!file) {
-      return res.status(404).json({
-        success: false,
-        message: 'File not found'
-      });
-    }
-
-    // ✅ Delete physical file
     try {
       const fileUrl = file.file_url;
       const filename = fileUrl.split('/downloads/').pop();
-      
-      if (filename) {
-        const filePath = path.join(__dirname, '../downloads', filename);
-        
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          console.log(`✅ Deleted physical file: ${filename}`);
-        }
-      }
+      if (filename) deletePhysicalDownload(filename);
     } catch (fileError) {
       console.error('❌ Error deleting physical file:', fileError);
-      // Continue with database deletion even if file deletion fails
     }
 
     await file.destroy();
-
-    res.status(200).json({
-      success: true,
-      message: 'File deleted successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error.message
-    });
+    return success(res, null, 'File deleted successfully', 200);
+  } catch (err) {
+    return error(res, 'Server error', 500, err.message);
   }
 };
 
@@ -566,10 +445,10 @@ const incrementDownloadCount = async (req, res) => {
 const downloadFile = async (req, res) => {
   try {
     const fileId = req.params.fileId;
-    
+
     // Get file info from database
     const file = await ReleaseFile.findByPk(fileId);
-    
+
     if (!file) {
       return res.status(404).json({
         success: false,
@@ -595,7 +474,7 @@ const downloadFile = async (req, res) => {
     // Set headers to force download
     res.setHeader('Content-Disposition', `attachment; filename="${file.file_name}"`);
     res.setHeader('Content-Type', 'application/octet-stream');
-    
+
     // Send file
     res.download(filePath, file.file_name, (err) => {
       if (err) {

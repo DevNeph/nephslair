@@ -249,26 +249,4 @@ router.post('/:id/increment', incrementDownloadCount);
  */
 router.delete('/:id', auth, adminAuth, deleteDownload);
 
-// ... diğer route'lar ...
-
-/**
- * @swagger
- * /releases/download/{fileId}:
- *   get:
- *     summary: Download release file
- *     tags: [Releases]
- *     parameters:
- *       - in: path
- *         name: fileId
- *         required: true
- *         schema:
- *           type: integer
- *     responses:
- *       200:
- *         description: File download
- *       404:
- *         description: File not found
- */
-router.get('/download/:fileId', downloadFile);
-
 module.exports = router;

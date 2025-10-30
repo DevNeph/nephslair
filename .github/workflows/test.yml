@@ -12,6 +12,7 @@ jobs:
     timeout-minutes: 30
     env:
       NODE_ENV: test
+      CI: true
       DB_HOST: mysql
       DB_USER: root
       DB_PASSWORD: root
@@ -26,7 +27,8 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: nephslair_test
-        # Service container içinde çalışan healthcheck (container içinden localhost'a ping)
+        # Health check runs inside the container (uses 127.0.0.1).
+        # From the runner, we connect using the service name "mysql".
         options: >-
           --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot"
           --health-interval=10s
@@ -40,7 +42,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
@@ -65,26 +67,63 @@ jobs:
 
       - name: Install MySQL client & wait for service
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends mysql-client
-          echo "Waiting for MySQL (service: mysql) to be ready..."
-          for i in {1..90}; do
-            if mysqladmin ping -h mysql -u root -proot --silent; then
-              echo "MySQL is ready!"
-              break
+          set -e  # Exit on any error
+
+          # Retry-friendly apt-get (handles transient network hiccups)
+          OK=0
+          for t in 1 2 3; do
+            if sudo apt-get update; then OK=1; break; fi
+            echo "apt-get update retry $t"; sleep 2
+          done
+          if [ $OK -ne 1 ]; then
+            echo "❌ Failed to apt-get update after retries"; exit 1
+          fi
+
+          OK=0
+          for t in 1 2 3; do
+            if sudo apt-get install -y --no-install-recommends mysql-client; then OK=1; break; fi
+            echo "apt-get install retry $t"; sleep 2
+          done
+          if [ $OK -ne 1 ]; then
+            echo "❌ Failed to install mysql-client after retries"; exit 1
+          fi
+
+          echo "MySQL client installed successfully"
+          echo ""
+          echo "Waiting for MySQL service container (hostname: mysql) to be ready..."
+          echo "Note: Service container health check may take up to 30 seconds..."
+
+          MAX_ATTEMPTS=90
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            ATTEMPT=$((ATTEMPT + 1))
+            if mysqladmin ping -h mysql -u root -proot --connect-timeout=5 --silent 2>/dev/null; then
+              echo "✅ MySQL is ready! (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+              # Verify with a simple query
+              if mysql -h mysql -u root -proot --connect-timeout=5 -e "SELECT 1;" >/dev/null 2>&1; then
+                echo "✅ MySQL connection verified with query"
+                exit 0
+              else
+                echo "⚠️ Ping successful but query failed, retrying..."
+                sleep 1
+                continue
+              fi
             fi
-            echo "Waiting for MySQL... ($i/90)"
+            if [ $((ATTEMPT % 10)) -eq 0 ]; then
+              echo "Still waiting... (attempt $ATTEMPT/$MAX_ATTEMPTS)"
+            fi
             sleep 1
           done
-          # If still not healthy, fail fast
-          if ! mysqladmin ping -h mysql -u root -proot --silent; then
-            echo "❌ MySQL did not become ready in time."
-            exit 1
-          fi
+
+          # If we get here, MySQL never became ready
+          echo "❌ MySQL did not become ready after $MAX_ATTEMPTS attempts"
+          echo "Last error:"
+          mysqladmin ping -h mysql -u root -proot --connect-timeout=5 --silent 2>&1 || true
+          exit 1
 
       - name: Verify MySQL connection
         run: |
-          mysql -h mysql -u root -proot -e "SELECT 1;" || exit 1
+          mysql -h mysql -u root -proot --connect-timeout=5 -e "SELECT 1;" || exit 1
           echo "MySQL connection verified!"
 
       - name: Run migrations
@@ -101,10 +140,14 @@ jobs:
             }
           echo "✅ Migrations completed successfully!"
 
+      - name: Show migration status
+        working-directory: ./backend
+        run: npx sequelize-cli db:migrate:status --config config/config.js --migrations-path migrations --env test
+
       - name: Verify database setup
         run: |
           echo "Verifying database tables..."
-          TABLES=$(mysql -h mysql -u root -proot "$DB_NAME" -e "SHOW TABLES;" 2>&1)
+          TABLES=$(mysql -h mysql -u root -proot --connect-timeout=5 "$DB_NAME" -e "SHOW TABLES;" 2>&1)
           if [ $? -eq 0 ]; then
             echo "✅ Database tables exist:"
             echo "$TABLES"
@@ -126,15 +169,13 @@ jobs:
           echo "=========================================="
           echo ""
           echo "Verifying database connection before tests..."
-          mysql -h mysql -u root -proot "$DB_NAME" -e "SELECT 1;" || {
+          mysql -h mysql -u root -proot --connect-timeout=5 "$DB_NAME" -e "SELECT 1;" || {
             echo "❌ Cannot connect to database!"
             exit 1
           }
           echo "✅ Database connection OK"
           echo ""
           echo "Running Jest tests..."
-          # Use --runInBand to run tests serially (important for DB connection pool)
-          # Coverage is collected but won't fail the build if coverage is low
           if [ -x "./node_modules/.bin/jest" ]; then
             if ./node_modules/.bin/jest --runInBand --coverage --coverageReporters=text-summary; then
               TEST_EXIT_CODE=0

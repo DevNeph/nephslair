@@ -113,14 +113,36 @@ jobs:
           DB_DIALECT: mysql
           JWT_SECRET: test_jwt_secret_key_for_ci
         run: |
-          echo "Starting tests..."
+          echo "=========================================="
+          echo "Starting Tests"
+          echo "=========================================="
           echo "Environment: NODE_ENV=$NODE_ENV"
           echo "Database: $DB_NAME on $DB_HOST"
-          npm test 2>&1 || {
-            echo "❌ Tests failed!"
-            echo "Checking test output..."
+          echo "Database User: $DB_USER"
+          echo "=========================================="
+          echo ""
+          echo "Verifying database connection before tests..."
+          mysql -h 127.0.0.1 -u root -proot nephslair_test -e "SELECT 1;" || {
+            echo "❌ Cannot connect to database!"
             exit 1
           }
+          echo "✅ Database connection OK"
+          echo ""
+          echo "Running Jest tests..."
+          npm test 2>&1
+          TEST_EXIT_CODE=$?
+          if [ $TEST_EXIT_CODE -ne 0 ]; then
+            echo ""
+            echo "=========================================="
+            echo "❌ Tests failed with exit code $TEST_EXIT_CODE"
+            echo "=========================================="
+            exit $TEST_EXIT_CODE
+          else
+            echo ""
+            echo "=========================================="
+            echo "✅ All tests passed!"
+            echo "=========================================="
+          fi
 
       - name: Upload coverage reports
         if: always()

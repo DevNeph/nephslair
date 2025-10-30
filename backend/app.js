@@ -1,3 +1,4 @@
+// backend/app.js
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -29,7 +30,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 
 // Test Route
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: '🚀 Nephslair API is running!',
     status: 'success',
     documentation: '/api-docs'
@@ -50,16 +51,17 @@ app.use('/api/settings', require('./routes/settings'));
 
 // 404 Handler
 app.use((req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     message: 'Route not found',
     status: 'error'
   });
 });
 
 // Error Handler
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     message: 'Something went wrong!',
     status: 'error',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
@@ -67,4 +69,3 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
-

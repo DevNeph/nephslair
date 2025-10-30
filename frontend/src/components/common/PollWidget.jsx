@@ -3,6 +3,7 @@ import { FiCheck } from 'react-icons/fi';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { emitPollVote, onPollVote } from '../../utils/pollEvents'; // ✅ EKLE
 
 const PollWidget = ({ pollId, showResults = false }) => {
   const { user } = useAuth();
@@ -17,6 +18,20 @@ const PollWidget = ({ pollId, showResults = false }) => {
     if (user) {
       fetchUserVote();
     }
+  }, [pollId, user]);
+
+  // ✅ Listen for poll updates from other components
+  useEffect(() => {
+    const cleanup = onPollVote((event) => {
+      if (event.detail.pollId === pollId) {
+        fetchPoll();
+        if (user) {
+          fetchUserVote();
+        }
+      }
+    });
+
+    return cleanup;
   }, [pollId, user]);
 
   // Countdown Timer
@@ -63,6 +78,8 @@ const PollWidget = ({ pollId, showResults = false }) => {
       const response = await api.get(`/polls/${pollId}/my-vote`);
       if (response.data.data.voted) {
         setUserVote(response.data.data.poll_option_id);
+      } else {
+        setUserVote(null);
       }
     } catch (error) {
       console.error('Error fetching user vote:', error);
@@ -75,7 +92,7 @@ const PollWidget = ({ pollId, showResults = false }) => {
       return;
     }
 
-    if (!poll.is_active) {
+    if (poll.is_closed) {
       toast.error('This poll is no longer active');
       return;
     }
@@ -94,7 +111,10 @@ const PollWidget = ({ pollId, showResults = false }) => {
         setUserVote(response.data.data.poll_option_id);
       }
       
-      fetchPoll();
+      await fetchPoll();
+      
+      // ✅ Notify other components
+      emitPollVote(pollId);
     } catch (error) {
       console.error('Error voting:', error);
       toast.error(error.response?.data?.message || 'Failed to submit vote');
@@ -105,7 +125,7 @@ const PollWidget = ({ pollId, showResults = false }) => {
 
   const getTotalVotes = () => {
     if (!poll?.options) return 0;
-    return poll.options.reduce((total, option) => total + (option.votes_count || 0), 0);
+    return poll.options.reduce((total, option) => total + (option.vote_count || 0), 0);
   };
 
   const getPercentage = (votes) => {
@@ -140,12 +160,10 @@ const PollWidget = ({ pollId, showResults = false }) => {
 
   const totalVotes = getTotalVotes();
   const hasVoted = userVote !== null || showResults;
-  const isPollExpired = poll.end_date && new Date(poll.end_date) < new Date();
-  const canVote = poll.is_active && !poll.is_finalized && !isPollExpired;
+  const canVote = !poll.is_closed;
 
   return (
     <div className="bg-black border border-gray-700 rounded-lg p-6 max-w-sm">
-      {/* Countdown Timer */}
       {timeLeft && canVote && (
         <div className="text-center mb-4">
           <div className="text-white text-2xl font-mono font-bold">
@@ -154,19 +172,16 @@ const PollWidget = ({ pollId, showResults = false }) => {
         </div>
       )}
 
-      {/* Poll Header */}
       <h3 className="text-xl font-semibold text-white mb-6">{poll.question}</h3>
 
-      {/* Poll Options */}
       <div className="space-y-3 mb-6">
         {poll.options && poll.options.map((option) => {
-          const percentage = getPercentage(option.votes_count);
+          const percentage = getPercentage(option.vote_count);
           const isSelected = userVote === option.id;
 
           return (
             <div key={option.id}>
               {hasVoted ? (
-                // Results View
                 <button
                   onClick={() => user && canVote && handleVote(option.id)}
                   disabled={!user || voting || !canVote}
@@ -189,7 +204,6 @@ const PollWidget = ({ pollId, showResults = false }) => {
                   </div>
                 </button>
               ) : (
-                // Voting View
                 <button
                   onClick={() => handleVote(option.id)}
                   disabled={voting || !canVote}
@@ -203,29 +217,28 @@ const PollWidget = ({ pollId, showResults = false }) => {
         })}
       </div>
 
-      {/* Footer Info */}
-      <div className="text-gray-400 text-sm">
-        {!user && !hasVoted ? (
-          <p>Login to vote</p>
-        ) : hasVoted ? (
-          <div>
-            <p className="mb-1">{totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}</p>
-            {user && userVote && canVote && (
-              <p className="text-xs">Click your vote to remove it</p>
-            )}
-          </div>
-        ) : (
-          <p>{totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}</p>
-        )}
-        
-        {/* Status Messages */}
-        {poll.is_finalized && (
-          <p className="text-red-400 text-xs mt-2">Poll closed</p>
-        )}
-        {isPollExpired && !poll.is_finalized && (
-          <p className="text-orange-400 text-xs mt-2">Poll expired</p>
-        )}
-      </div>
+        {/* Footer Info */}
+        <div className="text-gray-400 text-sm">
+          {!user && !hasVoted ? (
+            <p>Login to vote</p>
+          ) : hasVoted ? (
+            <div>
+              <p className="mb-1">{totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}</p>
+              {user && userVote && canVote && (
+                <p className="text-xs">Click your vote to remove it</p>
+              )}
+            </div>
+          ) : (
+            <p>{totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}</p>
+          )}
+          
+          {/* ✅ Status Messages */}
+          {poll.is_closed && (
+            <p className="text-red-400 text-xs mt-2">
+              {poll.is_finalized ? 'Poll finalized' : 'Poll closed'}
+            </p>
+          )}
+        </div>
     </div>
   );
 };

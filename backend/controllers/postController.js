@@ -1,8 +1,5 @@
-const { Post, Project, Comment, User, Poll, PollOption, Vote, Release, sequelize } = require('../models');
+const { Post, User, Project, Comment, Poll, PollOption, Vote, Release, ReleaseFile, Changelog, PostPoll, PostDownload, PostRelease, sequelize } = require('../models');
 
-// @desc    Get all published posts (for homepage)
-// @route   GET /api/posts
-// @access  Public
 // @desc    Get all published posts (for homepage)
 // @route   GET /api/posts
 // @access  Public
@@ -114,13 +111,15 @@ const getPostsByProject = async (req, res) => {
 // @access  Public
 const getPostBySlug = async (req, res) => {
   try {
+    const userId = req.user?.id; // ✅ User ID'sini al
+
     const post = await Post.findOne({
       where: { slug: req.params.slug },
       include: [
         {
           model: Project,
           as: 'project',
-          attributes: ['id', 'name', 'slug', 'description', 'status', 'latest_version'], // ✅ version → latest_version
+          attributes: ['id', 'name', 'slug', 'description', 'status', 'latest_version', 'updated_at'],
           include: [
             {
               model: Release,
@@ -131,6 +130,14 @@ const getPostBySlug = async (req, res) => {
               separate: true,
               order: [['release_date', 'DESC']],
               limit: 1
+            },
+            {
+              model: Changelog,
+              as: 'changelogs',
+              required: false,
+              separate: true,
+              order: [['release_date', 'DESC']],
+              limit: 5
             }
           ]
         },
@@ -151,6 +158,35 @@ const getPostBySlug = async (req, res) => {
           ],
           separate: true,
           order: [['created_at', 'DESC']]
+        },
+        {
+          model: Poll,
+          as: 'attachedPolls',
+          through: { 
+            model: PostPoll,
+            attributes: ['display_order']
+          },
+          include: [
+            {
+              model: PollOption,
+              as: 'options',
+              attributes: ['id', 'option_text', 'votes_count']
+            }
+          ]
+        },
+        {
+          model: Release,
+          as: 'attachedReleases',
+          through: { 
+            model: PostRelease,
+            attributes: ['display_order']
+          },
+          include: [
+            {
+              model: ReleaseFile,
+              as: 'files'
+            }
+          ]
         }
       ]
     });
@@ -169,12 +205,34 @@ const getPostBySlug = async (req, res) => {
       });
     }
 
+    // ✅ Format poll options
+    const postData = post.toJSON();
+    
+    if (postData.attachedPolls && postData.attachedPolls.length > 0) {
+      const { formatPollOptions } = require('./pollController');
+      
+      postData.attachedPolls = await Promise.all(
+        postData.attachedPolls.map(async (poll) => {
+          const now = new Date();
+          const isClosed = poll.is_finalized || 
+                          !poll.is_active || 
+                          (poll.end_date && new Date(poll.end_date) < now);
+          
+          return {
+            ...poll,
+            options: await formatPollOptions(poll.options, userId),
+            is_closed: isClosed
+          };
+        })
+      );
+    }
+
     res.status(200).json({
       success: true,
-      data: post
+      data: postData
     });
   } catch (error) {
-    console.error('Error fetching post:', error);
+    console.error('❌ Error in getPostBySlug:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -266,7 +324,6 @@ const createPost = async (req, res) => {
   try {
     const { project_id, title, content, excerpt, status } = req.body;
 
-    // Validation 
     if (!title || !content) {
       return res.status(400).json({
         success: false,
@@ -274,7 +331,6 @@ const createPost = async (req, res) => {
       });
     }
 
-    // Auto-generate slug from title
     const slug = title
       .toLowerCase()
       .trim()
@@ -283,7 +339,6 @@ const createPost = async (req, res) => {
       .replace(/-+/g, '-')
       .replace(/^-+|-+$/g, '');
 
-    // Check if project exists
     if (project_id) {
       const project = await Project.findByPk(project_id);
       if (!project) {
@@ -294,7 +349,6 @@ const createPost = async (req, res) => {
       }
     }
 
-    // Check if slug already exists
     const slugExists = await Post.findOne({ where: { slug } });
     if (slugExists) {
       return res.status(400).json({
@@ -344,7 +398,6 @@ const updatePost = async (req, res) => {
       });
     }
 
-    // Check if new slug already exists (excluding current post)
     if (slug && slug !== post.slug) {
       const slugExists = await Post.findOne({ where: { slug } });
       if (slugExists && slugExists.id !== post.id) {
@@ -355,7 +408,6 @@ const updatePost = async (req, res) => {
       }
     }
 
-    // Update fields
     if (title) post.title = title;
     if (slug) post.slug = slug;
     if (content) post.content = content;
@@ -473,7 +525,6 @@ const votePost = async (req, res) => {
       });
     }
 
-    // Check if user already voted
     let vote = await Vote.findOne({
       where: {
         user_id: userId,
@@ -482,24 +533,18 @@ const votePost = async (req, res) => {
     });
 
     if (vote) {
-      // User already voted
       if (vote.vote_type === vote_type) {
-        // Same vote - remove it (toggle)
         await vote.destroy();
         
-        // Update post vote counts
         if (vote_type === 'upvote') {
           post.upvotes = Math.max(0, post.upvotes - 1);
         } else {
           post.downvotes = Math.max(0, post.downvotes - 1);
         }
       } else {
-        // Different vote - change it
-        const oldVote = vote.vote_type;
         vote.vote_type = vote_type;
         await vote.save();
         
-        // Update post vote counts
         if (vote_type === 'upvote') {
           post.upvotes += 1;
           post.downvotes = Math.max(0, post.downvotes - 1);
@@ -509,14 +554,12 @@ const votePost = async (req, res) => {
         }
       }
     } else {
-      // New vote
       await Vote.create({
         user_id: userId,
         post_id: postId,
         vote_type: vote_type
       });
       
-      // Update post vote counts
       if (vote_type === 'upvote') {
         post.upvotes += 1;
       } else {
@@ -543,6 +586,282 @@ const votePost = async (req, res) => {
   }
 };
 
+// ==========================================
+// ✅ NEW FUNCTIONS - POLL MANAGEMENT
+// ==========================================
+
+// @desc    Add poll to post
+// @route   POST /api/posts/:postId/polls/:pollId
+// @access  Private/Admin
+const addPollToPost = async (req, res) => {
+  try {
+    const { postId, pollId } = req.params;
+    const { display_order } = req.body;
+
+    const post = await Post.findByPk(postId);
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    const poll = await Poll.findByPk(pollId);
+    if (!poll) {
+      return res.status(404).json({
+        success: false,
+        message: 'Poll not found'
+      });
+    }
+
+    // Check if already exists
+    const existing = await PostPoll.findOne({
+      where: { post_id: postId, poll_id: pollId }
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Poll already attached to this post'
+      });
+    }
+
+    await PostPoll.create({
+      post_id: postId,
+      poll_id: pollId,
+      display_order: display_order || 0
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Poll added to post successfully'
+    });
+  } catch (error) {
+    console.error('Error adding poll to post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Remove poll from post
+// @route   DELETE /api/posts/:postId/polls/:pollId
+// @access  Private/Admin
+const removePollFromPost = async (req, res) => {
+  try {
+    const { postId, pollId } = req.params;
+
+    const postPoll = await PostPoll.findOne({
+      where: { post_id: postId, poll_id: pollId }
+    });
+
+    if (!postPoll) {
+      return res.status(404).json({
+        success: false,
+        message: 'Poll not attached to this post'
+      });
+    }
+
+    await postPoll.destroy();
+
+    res.status(200).json({
+      success: true,
+      message: 'Poll removed from post successfully'
+    });
+  } catch (error) {
+    console.error('Error removing poll from post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+
+// @desc    Add download file to post
+// @route   POST /api/posts/:postId/downloads/:fileId
+// @access  Private/Admin
+const addDownloadToPost = async (req, res) => {
+  try {
+    const { postId, fileId } = req.params;
+    const { display_order } = req.body;
+
+    const post = await Post.findByPk(postId);
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    const file = await ReleaseFile.findByPk(fileId);
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        message: 'Release file not found'
+      });
+    }
+
+    // Check if already exists
+    const existing = await PostDownload.findOne({
+      where: { post_id: postId, release_file_id: fileId }
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'File already attached to this post'
+      });
+    }
+
+    await PostDownload.create({
+      post_id: postId,
+      release_file_id: fileId,
+      display_order: display_order || 0
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Download file added to post successfully'
+    });
+  } catch (error) {
+    console.error('Error adding download to post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Remove download file from post
+// @route   DELETE /api/posts/:postId/downloads/:fileId
+// @access  Private/Admin
+const removeDownloadFromPost = async (req, res) => {
+  try {
+    const { postId, fileId } = req.params;
+
+    const postDownload = await PostDownload.findOne({
+      where: { post_id: postId, release_file_id: fileId }
+    });
+
+    if (!postDownload) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not attached to this post'
+      });
+    }
+
+    await postDownload.destroy();
+
+    res.status(200).json({
+      success: true,
+      message: 'Download file removed from post successfully'
+    });
+  } catch (error) {
+    console.error('Error removing download from post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Add release to post
+// @route   POST /api/posts/:postId/releases/:releaseId
+// @access  Private/Admin
+const addReleaseToPost = async (req, res) => {
+  try {
+    const { postId, releaseId } = req.params;
+    const { display_order } = req.body;
+
+    const post = await Post.findByPk(postId);
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: 'Post not found'
+      });
+    }
+
+    const release = await Release.findByPk(releaseId);
+    if (!release) {
+      return res.status(404).json({
+        success: false,
+        message: 'Release not found'
+      });
+    }
+
+    const { PostRelease } = require('../models');
+    const existing = await PostRelease.findOne({
+      where: { post_id: postId, release_id: releaseId }
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Release already attached to this post'
+      });
+    }
+
+    await PostRelease.create({
+      post_id: postId,
+      release_id: releaseId,
+      display_order: display_order || 0
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Release added to post successfully'
+    });
+  } catch (error) {
+    console.error('Error adding release to post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Remove release from post
+// @route   DELETE /api/posts/:postId/releases/:releaseId
+// @access  Private/Admin
+const removeReleaseFromPost = async (req, res) => {
+  try {
+    const { postId, releaseId } = req.params;
+
+    const { PostRelease } = require('../models');
+    const postRelease = await PostRelease.findOne({
+      where: { post_id: postId, release_id: releaseId }
+    });
+
+    if (!postRelease) {
+      return res.status(404).json({
+        success: false,
+        message: 'Release not attached to this post'
+      });
+    }
+
+    await postRelease.destroy();
+
+    res.status(200).json({
+      success: true,
+      message: 'Release removed from post successfully'
+    });
+  } catch (error) {
+    console.error('Error removing release from post:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllPosts,
   getAllPostsAdmin,
@@ -553,5 +872,11 @@ module.exports = {
   updatePost,
   updatePostStatus,
   deletePost,
-  votePost
+  votePost,
+  addPollToPost,
+  removePollFromPost,
+  addDownloadToPost,
+  removeDownloadFromPost,
+  addReleaseToPost,
+  removeReleaseFromPost
 };

@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { FiSave, FiX, FiEye } from 'react-icons/fi';
+import { FiSave, FiX, FiEye, FiPlus, FiTrash2, FiPackage, FiBarChart2 } from 'react-icons/fi';
 import api from '../../../services/api';
+import { 
+  addPollToPost, 
+  removePollFromPost,
+  addReleaseToPost,
+  removeReleaseFromPost
+} from '../../../services/postService';
 import Loading from '../../../components/common/Loading';
 import toast from 'react-hot-toast';
+import { formatDate } from '../../../utils/helpers';
 
 const PostForm = () => {
   const navigate = useNavigate();
@@ -13,7 +20,15 @@ const PostForm = () => {
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [projects, setProjects] = useState([]);
+  const [availablePolls, setAvailablePolls] = useState([]);
+  const [availableReleases, setAvailableReleases] = useState([]);
+  const [selectedPolls, setSelectedPolls] = useState([]);
+  const [selectedReleases, setSelectedReleases] = useState([]);
+  const [attachedPolls, setAttachedPolls] = useState([]);
+  const [attachedReleases, setAttachedReleases] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [showPollModal, setShowPollModal] = useState(false);
+  const [showReleaseModal, setShowReleaseModal] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -27,10 +42,24 @@ const PostForm = () => {
 
   useEffect(() => {
     fetchProjects();
+    fetchAvailablePolls(null);
     if (isEditMode) {
       fetchPost();
     }
   }, [id]);
+
+  useEffect(() => {
+    fetchAvailablePolls(formData.project_id || null);
+    
+    if (formData.project_id) {
+      fetchAvailableReleases(formData.project_id);
+    } else {
+      setAvailableReleases([]);
+      if (!isEditMode) {
+        setSelectedReleases([]);
+      }
+    }
+  }, [formData.project_id]);
 
   const fetchProjects = async () => {
     try {
@@ -55,12 +84,39 @@ const PostForm = () => {
         status: post.status,
         excerpt: post.excerpt || ''
       });
+
+      if (post.slug) {
+        const detailResponse = await api.get(`/posts/${post.slug}`);
+        setAttachedPolls(detailResponse.data.data.attachedPolls || []);
+        setAttachedReleases(detailResponse.data.data.attachedReleases || []);
+      }
     } catch (error) {
       console.error('Error fetching post:', error);
       toast.error('Failed to load post');
       navigate('/admin/posts');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAvailablePolls = async (projectId) => {
+    try {
+      const params = projectId ? { project_id: projectId } : {};
+      const response = await api.get('/polls/available', { params });
+      setAvailablePolls(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching polls:', error);
+    }
+  };
+
+  const fetchAvailableReleases = async (projectId) => {
+    try {
+      const response = await api.get(`/releases`, {
+        params: { project_id: projectId }
+      });
+      setAvailableReleases(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching releases:', error);
     }
   };
 
@@ -89,10 +145,90 @@ const PostForm = () => {
       newErrors.content = 'Content is required';
     }
 
-    // project_id artık optional, validation kaldırıldı
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Poll handlers
+  const handleSelectPoll = (poll) => {
+    if (selectedPolls.find(p => p.id === poll.id)) {
+      toast.error('Poll already added');
+      return;
+    }
+    setSelectedPolls([...selectedPolls, poll]);
+    setShowPollModal(false);
+    toast.success('Poll added to post');
+  };
+
+  const handleDeselectPoll = (pollId) => {
+    setSelectedPolls(selectedPolls.filter(p => p.id !== pollId));
+    toast.success('Poll removed');
+  };
+
+  const handleAddPoll = async (pollId) => {
+    try {
+      await addPollToPost(id, pollId);
+      toast.success('Poll added successfully');
+      fetchPost();
+      setShowPollModal(false);
+    } catch (error) {
+      console.error('Error adding poll:', error);
+      toast.error(error.response?.data?.message || 'Failed to add poll');
+    }
+  };
+
+  const handleRemovePoll = async (pollId) => {
+    if (!window.confirm('Remove this poll from the post?')) return;
+
+    try {
+      await removePollFromPost(id, pollId);
+      toast.success('Poll removed successfully');
+      fetchPost();
+    } catch (error) {
+      console.error('Error removing poll:', error);
+      toast.error('Failed to remove poll');
+    }
+  };
+
+  // Release handlers
+  const handleSelectRelease = (release) => {
+    if (selectedReleases.find(r => r.id === release.id)) {
+      toast.error('Release already added');
+      return;
+    }
+    setSelectedReleases([...selectedReleases, release]);
+    setShowReleaseModal(false);
+    toast.success('Release added to post');
+  };
+
+  const handleDeselectRelease = (releaseId) => {
+    setSelectedReleases(selectedReleases.filter(r => r.id !== releaseId));
+    toast.success('Release removed');
+  };
+
+  const handleAddRelease = async (releaseId) => {
+    try {
+      await addReleaseToPost(id, releaseId);
+      toast.success('Release added successfully');
+      fetchPost();
+      setShowReleaseModal(false);
+    } catch (error) {
+      console.error('Error adding release:', error);
+      toast.error(error.response?.data?.message || 'Failed to add release');
+    }
+  };
+
+  const handleRemoveRelease = async (releaseId) => {
+    if (!window.confirm('Remove this release from the post?')) return;
+
+    try {
+      await removeReleaseFromPost(id, releaseId);
+      toast.success('Release removed successfully');
+      fetchPost();
+    } catch (error) {
+      console.error('Error removing release:', error);
+      toast.error('Failed to remove release');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -109,12 +245,30 @@ const PostForm = () => {
       if (isEditMode) {
         await api.put(`/posts/${id}`, formData);
         toast.success('Post updated successfully');
+        navigate('/admin/posts');
       } else {
-        await api.post('/posts', formData);
-        toast.success('Post created successfully');
-      }
+        const response = await api.post('/posts', formData);
+        const newPostId = response.data.data.id;
 
-      navigate('/admin/posts');
+        if (selectedPolls.length > 0) {
+          await Promise.all(
+            selectedPolls.map((poll, index) => 
+              addPollToPost(newPostId, poll.id, index)
+            )
+          );
+        }
+
+        if (selectedReleases.length > 0) {
+          await Promise.all(
+            selectedReleases.map((release, index) => 
+              addReleaseToPost(newPostId, release.id, index)
+            )
+          );
+        }
+
+        toast.success('Post created successfully!');
+        navigate('/admin/posts');
+      }
     } catch (error) {
       console.error('Error saving post:', error);
       toast.error(error.response?.data?.message || 'Failed to save post');
@@ -133,6 +287,12 @@ const PostForm = () => {
     return <Loading />;
   }
 
+  const displayPolls = isEditMode ? attachedPolls : selectedPolls;
+  const displayReleases = isEditMode ? attachedReleases : selectedReleases;
+
+  const usedPollIds = displayPolls.map(p => p.id);
+  const usedReleaseIds = displayReleases.map(r => r.id);
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="mb-8">
@@ -145,7 +305,10 @@ const PostForm = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Information */}
         <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
+          <h2 className="text-xl font-bold text-white mb-6">Basic Information</h2>
+
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-300 mb-2">
               Title <span className="text-red-500">*</span>
@@ -181,7 +344,7 @@ const PostForm = () => {
               ))}
             </select>
             <p className="text-gray-500 text-xs mt-1">
-              Leave as "No Project" to post directly to the main feed without a project.
+              Select a project to enable releases (changelogs + downloads)
             </p>
           </div>
 
@@ -197,9 +360,6 @@ const PostForm = () => {
               className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 resize-none"
               placeholder="Brief summary of the post (optional)"
             />
-            <p className="text-gray-500 text-xs mt-1">
-              This will be displayed in post cards. If left empty, first 150 characters of content will be used.
-            </p>
           </div>
 
           <div className="mb-6">
@@ -217,13 +377,8 @@ const PostForm = () => {
             </div>
 
             {showPreview ? (
-              <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-4 min-h-[400px]">
-                <div
-                  className="prose prose-invert max-w-none"
-                  dangerouslySetInnerHTML={{
-                    __html: formData.content.replace(/\n/g, '<br />')
-                  }}
-                />
+              <div className="bg-neutral-800 border border-neutral-700 rounded-lg p-4 min-h-[400px] whitespace-pre-wrap">
+                {formData.content}
               </div>
             ) : (
               <textarea
@@ -238,9 +393,6 @@ const PostForm = () => {
               />
             )}
             {errors.content && <p className="text-red-500 text-sm mt-1">{errors.content}</p>}
-            <p className="text-gray-500 text-xs mt-1">
-              Supports Markdown formatting. Use preview to see how it will look.
-            </p>
           </div>
 
           <div className="mb-6">
@@ -256,12 +408,101 @@ const PostForm = () => {
               <option value="draft">Draft (Hidden from public)</option>
               <option value="published">Published (Visible to everyone)</option>
             </select>
-            <p className="text-gray-500 text-xs mt-1">
-              Draft posts are only visible to admins. Published posts are visible to everyone.
-            </p>
           </div>
         </div>
 
+        {/* Polls Section */}
+        <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <FiBarChart2 className="text-purple-400" size={20} />
+              <h2 className="text-xl font-bold text-white">Polls</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowPollModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition"
+            >
+              <FiPlus /> Add Poll
+            </button>
+          </div>
+
+          {displayPolls.length > 0 ? (
+            <div className="space-y-3">
+              {displayPolls.map((poll) => (
+                <div
+                  key={poll.id}
+                  className="flex items-center justify-between p-4 bg-neutral-800 border border-neutral-700 rounded-lg"
+                >
+                  <div>
+                    <p className="text-white font-medium">{poll.question}</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {poll.options?.length || 0} options • {poll.is_closed ? 'Closed' : 'Active'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => isEditMode ? handleRemovePoll(poll.id) : handleDeselectPoll(poll.id)}
+                    className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition"
+                  >
+                    <FiTrash2 />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-center py-8">No polls attached</p>
+          )}
+        </div>
+
+        {/* Releases Section */}
+        {formData.project_id && (
+          <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <FiPackage className="text-purple-400" size={20} />
+                <h2 className="text-xl font-bold text-white">Releases</h2>
+                <span className="text-xs text-gray-500">(Changelogs + Downloads)</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReleaseModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition"
+              >
+                <FiPlus /> Add Release
+              </button>
+            </div>
+
+            {displayReleases.length > 0 ? (
+              <div className="space-y-3">
+                {displayReleases.map((release) => (
+                  <div
+                    key={release.id}
+                    className="flex items-center justify-between p-4 bg-neutral-800 border border-neutral-700 rounded-lg"
+                  >
+                    <div>
+                      <p className="text-white font-medium">Version {release.version}</p>
+                      <p className="text-sm text-gray-400 mt-1">
+                        {formatDate(release.release_date)} • {release.files?.length || 0} files
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => isEditMode ? handleRemoveRelease(release.id) : handleDeselectRelease(release.id)}
+                      className="p-2 text-red-400 hover:bg-red-900/20 rounded-lg transition"
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-8">No releases attached</p>
+            )}
+          </div>
+        )}
+
+        {/* Save/Cancel Buttons */}
         <div className="flex gap-4">
           <button
             type="button"
@@ -279,6 +520,86 @@ const PostForm = () => {
           </button>
         </div>
       </form>
+
+      {/* Poll Selection Modal */}
+      {showPollModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-neutral-800">
+              <h3 className="text-lg font-bold text-white">Select Poll</h3>
+              <button
+                onClick={() => setShowPollModal(false)}
+                className="p-1 hover:bg-neutral-800 rounded transition"
+              >
+                <FiX className="text-gray-400" size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {availablePolls.filter(poll => !usedPollIds.includes(poll.id)).length > 0 ? (
+                <div className="space-y-3">
+                  {availablePolls.filter(poll => !usedPollIds.includes(poll.id)).map((poll) => (
+                    <button
+                      key={poll.id}
+                      onClick={() => isEditMode ? handleAddPoll(poll.id) : handleSelectPoll(poll)}
+                      className="w-full text-left p-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg transition"
+                    >
+                      <p className="text-white font-medium mb-1">{poll.question}</p>
+                      <p className="text-sm text-gray-400">
+                        {poll.options?.length || 0} options • {poll.is_closed ? 'Closed' : 'Active'}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No available polls</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Release Selection Modal */}
+      {showReleaseModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-lg max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-neutral-800">
+              <h3 className="text-lg font-bold text-white">Select Release</h3>
+              <button
+                onClick={() => setShowReleaseModal(false)}
+                className="p-1 hover:bg-neutral-800 rounded transition"
+              >
+                <FiX className="text-gray-400" size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {availableReleases.filter(release => !usedReleaseIds.includes(release.id)).length > 0 ? (
+                <div className="space-y-3">
+                  {availableReleases.filter(release => !usedReleaseIds.includes(release.id)).map((release) => (
+                    <button
+                      key={release.id}
+                      onClick={() => isEditMode ? handleAddRelease(release.id) : handleSelectRelease(release)}
+                      className="w-full text-left p-4 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 rounded-lg transition"
+                    >
+                      <p className="text-white font-medium mb-1">Version {release.version}</p>
+                      <p className="text-sm text-gray-400">
+                        {formatDate(release.release_date)} • {release.files?.length || 0} files • {release.is_published ? 'Published' : 'Draft'}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <p className="text-gray-500">No available releases for this project</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -11,8 +11,11 @@ const PollOption = require('./PollOption');
 const PollVote = require('./PollVote');
 const Release = require('./Release');
 const ReleaseFile = require('./ReleaseFile');
+const Changelog = require('./Changelog');
 const CommentVote = require('./commentvote')(sequelize, require('sequelize').DataTypes);
 const CommentHistory = require('./CommentHistory');
+const PostPoll = require('./PostPoll'); 
+const PostRelease = require('./PostRelease')(sequelize, require('sequelize').DataTypes);
 
 // ==========================================
 // DEFINE RELATIONSHIPS
@@ -59,14 +62,14 @@ User.hasMany(Vote, { foreignKey: 'user_id', as: 'votes' });
 Vote.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
 // ==========================================
-// POLL RELATIONSHIPS - IMPORTANT!
+// POLL RELATIONSHIPS
 // ==========================================
 
-// Post - Poll relationship (OPTIONAL - polls can exist without posts)
+// Post - Poll relationship (OPTIONAL)
 Post.hasMany(Poll, { foreignKey: 'post_id', as: 'polls' });
 Poll.belongsTo(Post, { foreignKey: 'post_id', as: 'post' });
 
-// Project - Poll relationship (OPTIONAL - polls can exist without projects)
+// Project - Poll relationship (OPTIONAL)
 Project.hasMany(Poll, { foreignKey: 'project_id', as: 'polls' });
 Poll.belongsTo(Project, { foreignKey: 'project_id', as: 'project' });
 
@@ -82,7 +85,7 @@ PollVote.belongsTo(PollOption, { foreignKey: 'poll_option_id', as: 'option' });
 User.hasMany(PollVote, { foreignKey: 'user_id', as: 'pollVotes' });
 PollVote.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 
-// Poll - PollVote relationship (for easier querying)
+// Poll - PollVote relationship
 Poll.hasMany(PollVote, { foreignKey: 'poll_id', as: 'votes' });
 PollVote.belongsTo(Poll, { foreignKey: 'poll_id', as: 'poll' });
 
@@ -98,9 +101,67 @@ Release.belongsTo(Project, { foreignKey: 'project_id', as: 'project' });
 Release.hasMany(ReleaseFile, { foreignKey: 'release_id', as: 'files', onDelete: 'CASCADE' });
 ReleaseFile.belongsTo(Release, { foreignKey: 'release_id', as: 'release' });
 
-// Post - Release relationship
-Post.belongsTo(Release, { foreignKey: 'release_id', as: 'release' });
-Release.hasMany(Post, { foreignKey: 'release_id', as: 'posts' });
+// ==========================================
+// CHANGELOG RELATIONSHIPS
+// ==========================================
+
+// Project - Changelog relationship
+Project.hasMany(Changelog, { foreignKey: 'project_id', as: 'changelogs' });
+Changelog.belongsTo(Project, { foreignKey: 'project_id', as: 'project' });
+
+// ==========================================
+// POST-POLL MANY-TO-MANY
+// ==========================================
+
+// Post <-> Poll (Many-to-Many through PostPoll)
+Post.belongsToMany(Poll, { 
+  through: PostPoll, 
+  foreignKey: 'post_id', 
+  otherKey: 'poll_id',
+  as: 'attachedPolls'
+});
+
+Poll.belongsToMany(Post, { 
+  through: PostPoll, 
+  foreignKey: 'poll_id', 
+  otherKey: 'post_id',
+  as: 'attachedPosts'
+});
+
+// PostPoll - Post relationship
+PostPoll.belongsTo(Post, { foreignKey: 'post_id', as: 'post' });
+Post.hasMany(PostPoll, { foreignKey: 'post_id', as: 'postPolls' });
+
+// PostPoll - Poll relationship
+PostPoll.belongsTo(Poll, { foreignKey: 'poll_id', as: 'poll' });
+Poll.hasMany(PostPoll, { foreignKey: 'poll_id', as: 'postPolls' });
+
+// ==========================================
+// POST-RELEASE MANY-TO-MANY
+// ==========================================
+
+// Post <-> Release (Many-to-Many through PostRelease)
+Post.belongsToMany(Release, { 
+  through: PostRelease, 
+  foreignKey: 'post_id', 
+  otherKey: 'release_id',
+  as: 'attachedReleases'
+});
+
+Release.belongsToMany(Post, { 
+  through: PostRelease, 
+  foreignKey: 'release_id', 
+  otherKey: 'post_id',
+  as: 'attachedPosts'
+});
+
+// PostRelease - Post relationship
+PostRelease.belongsTo(Post, { foreignKey: 'post_id', as: 'post' });
+Post.hasMany(PostRelease, { foreignKey: 'post_id', as: 'postReleases' });
+
+// PostRelease - Release relationship
+PostRelease.belongsTo(Release, { foreignKey: 'release_id', as: 'release' });
+Release.hasMany(PostRelease, { foreignKey: 'release_id', as: 'postReleases' });
 
 // ==========================================
 // DATABASE SYNC
@@ -130,7 +191,10 @@ module.exports = {
   PollVote,
   Release,
   ReleaseFile,
+  Changelog,
   CommentVote,
   CommentHistory,
+  PostPoll, 
+  PostRelease,
   syncDatabase
 };

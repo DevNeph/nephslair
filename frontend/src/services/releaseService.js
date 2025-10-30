@@ -64,3 +64,20 @@ export const downloadFile = (fileId) => {
   
   window.location.href = `${backendUrl}/api/releases/download/${fileId}`;
 };
+
+/**
+ * Get all release files (for dropdown/selection)
+ */
+export const getAllReleaseFiles = async (projectId = null) => {
+  const params = projectId ? { project_id: projectId } : {};
+  const response = await api.get('/release-files', { params });
+  return response.data.data;
+};
+
+/**
+ * Get release files by project
+ */
+export const getReleaseFilesByProject = async (projectId) => {
+  const response = await api.get(`/projects/${projectId}/release-files`);
+  return response.data.data;
+};

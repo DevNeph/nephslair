@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { FiArrowLeft, FiTrash2, FiToggleLeft, FiToggleRight, FiExternalLink, FiLock } from 'react-icons/fi';
+import { FiArrowLeft, FiTrash2, FiToggleLeft, FiToggleRight, FiExternalLink, FiLock, FiEdit2 } from 'react-icons/fi';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 
@@ -129,6 +129,13 @@ const PollDetails = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+                  <Link
+                      to={`/admin/polls/edit/${poll.id}`}
+                      className="flex items-center gap-2 px-4 py-2 bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 rounded-lg transition"
+                    >
+                      <FiEdit2 />
+                      <span>Edit</span>
+                  </Link>
             {!poll.is_finalized && !isPollExpired() && (
               <button
                 onClick={togglePollStatus}

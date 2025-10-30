@@ -63,3 +63,51 @@ export const votePost = async (postId, voteType) => {
   const response = await api.post(`/posts/${postId}/vote`, { vote_type: voteType });
   return response.data.data;
 };
+
+/**
+ * Add poll to post (admin only)
+ */
+export const addPollToPost = async (postId, pollId, displayOrder = 0) => {
+  const response = await api.post(`/posts/${postId}/polls/${pollId}`, { display_order: displayOrder });
+  return response.data;
+};
+
+/**
+ * Remove poll from post (admin only)
+ */
+export const removePollFromPost = async (postId, pollId) => {
+  const response = await api.delete(`/posts/${postId}/polls/${pollId}`);
+  return response.data;
+};
+
+/**
+ * Add download file to post (admin only)
+ */
+export const addDownloadToPost = async (postId, fileId, displayOrder = 0) => {
+  const response = await api.post(`/posts/${postId}/downloads/${fileId}`, { display_order: displayOrder });
+  return response.data;
+};
+
+/**
+ * Remove download file from post (admin only)
+ */
+export const removeDownloadFromPost = async (postId, fileId) => {
+  const response = await api.delete(`/posts/${postId}/downloads/${fileId}`);
+  return response.data;
+};
+
+/**
+ * Add release to post (admin only)
+ */
+export const addReleaseToPost = async (postId, releaseId, displayOrder = 0) => {
+  const response = await api.post(`/posts/${postId}/releases/${releaseId}`, { display_order: displayOrder });
+  return response.data;
+};
+
+/**
+ * Remove release from post (admin only)
+ */
+export const removeReleaseFromPost = async (postId, releaseId) => {
+  const response = await api.delete(`/posts/${postId}/releases/${releaseId}`);
+  return response.data;
+};

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
+  getAllReleases,
   getReleasesByProject,
   getAllReleasesAdmin,
   getReleasesByProjectIdAdmin,
@@ -18,6 +19,7 @@ const auth = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
 
 // Public routes
+router.get('/', getAllReleases);
 router.get('/project/:projectSlug', getReleasesByProject);
 router.get('/download/:fileId', downloadFile);
 router.post('/files/:fileId/download', incrementDownloadCount);

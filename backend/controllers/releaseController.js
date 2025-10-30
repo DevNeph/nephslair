@@ -23,6 +23,50 @@ const updateProjectLatestVersion = async (projectId) => {
   }
 };
 
+// @desc    Get all releases with optional project filter
+// @route   GET /api/releases?project_id=X
+// @access  Public
+const getAllReleases = async (req, res) => {
+  try {
+    const { project_id } = req.query;
+    
+    const whereClause = { is_published: true };
+    if (project_id) {
+      whereClause.project_id = project_id;
+    }
+
+    const releases = await Release.findAll({
+      where: whereClause,
+      include: [
+        {
+          model: Project,
+          as: 'project',
+          attributes: ['id', 'name', 'slug']
+        },
+        {
+          model: ReleaseFile,
+          as: 'files',
+          attributes: ['id', 'file_name', 'file_url', 'file_size', 'file_type', 'platform', 'download_count']
+        }
+      ],
+      order: [['release_date', 'DESC']]
+    });
+
+    res.status(200).json({
+      success: true,
+      count: releases.length,
+      data: releases
+    });
+  } catch (error) {
+    console.error('Error fetching releases:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Get all releases for a project
 // @route   GET /api/releases/project/:projectSlug
 // @access  Public
@@ -575,6 +619,7 @@ const downloadFile = async (req, res) => {
 };
 
 module.exports = {
+  getAllReleases,
   getReleasesByProject,
   getAllReleasesAdmin,
   getReleasesByProjectIdAdmin,

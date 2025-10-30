@@ -9,6 +9,8 @@ import ErrorMessage from '../../components/common/ErrorMessage';
 import { formatDate, getVoteCount } from '../../utils/helpers';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
+import PostPolls from '../../components/post/PostPolls';
+import PostReleases from '../../components/post/PostReleases';
 
 // Edit History Modal Component
 const EditHistoryModal = memo(({ commentId, onClose }) => {
@@ -819,6 +821,19 @@ const PostPage = () => {
               </button>
             </div>
           </div>
+
+        {/* Polls & Releases */}
+        <div className="space-y-6 mb-8">
+          {/* Polls */}
+          {post.attachedPolls && post.attachedPolls.length > 0 && (
+            <PostPolls polls={post.attachedPolls} />
+          )}
+
+          {/* Releases (changelog + downloads birlikte) */}
+          {post.attachedReleases && post.attachedReleases.length > 0 && (
+            <PostReleases releases={post.attachedReleases} />
+          )}
+        </div>
 
           {/* Comments Section */}
           <div className="bg-black border border-gray-700 rounded-lg p-8">

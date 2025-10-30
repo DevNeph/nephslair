@@ -25,6 +25,7 @@ import ManageReleases from './pages/Admin/Releases/ManageReleases';
 import ReleaseForm from './pages/Admin/Releases/ReleaseForm';
 import ManagePolls from './pages/Admin/Polls/ManagePolls';
 import CreatePoll from './pages/Admin/Polls/CreatePoll';
+import EditPoll from './pages/Admin/Polls/EditPoll'; // ← EKLE
 import PollDetails from './pages/Admin/Polls/PollDetails';
 
 function App() {
@@ -184,6 +185,14 @@ function App() {
                 element={
                   <AdminRoute>
                     <CreatePoll />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/admin/polls/edit/:id"
+                element={
+                  <AdminRoute>
+                    <EditPoll />
                   </AdminRoute>
                 }
               />

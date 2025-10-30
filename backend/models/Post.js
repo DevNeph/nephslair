@@ -9,12 +9,12 @@ const Post = sequelize.define('Post', {
   },
   project_id: {
     type: DataTypes.INTEGER,
-    allowNull: true,  // ✅ Doğru
+    allowNull: true,
     references: {
       model: 'projects',
       key: 'id'
     },
-    onDelete: 'SET NULL'  // ✅ CASCADE'den SET NULL'a değiştir!
+    onDelete: 'SET NULL'
   },
   author_id: {
     type: DataTypes.INTEGER,
@@ -72,16 +72,7 @@ const Post = sequelize.define('Post', {
   updated_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW
-  },
-  release_id: {
-  type: DataTypes.INTEGER,
-  allowNull: true,
-  references: {
-    model: 'releases',
-    key: 'id'
-  },
-  onDelete: 'SET NULL'
-}
+  }
 }, {
   tableName: 'posts',
   timestamps: false,
@@ -91,6 +82,5 @@ const Post = sequelize.define('Post', {
     }
   },
 });
-
 
 module.exports = Post;

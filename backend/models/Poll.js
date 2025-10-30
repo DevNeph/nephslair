@@ -1,3 +1,4 @@
+// backend/models/Poll.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -32,10 +33,15 @@ const Poll = sequelize.define('Poll', {
     },
     onDelete: 'CASCADE'
   },
-  placement_type: {
-    type: DataTypes.ENUM('project', 'post', 'both', 'standalone'),
-    defaultValue: 'standalone',
-    comment: 'Where the poll should be displayed'
+  show_on_homepage: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    comment: 'Show this poll on homepage sidebar'
+  },
+  is_standalone: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+    comment: 'Can be added to posts manually'
   },
   is_active: {
     type: DataTypes.BOOLEAN,

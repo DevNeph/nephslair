@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiPlus, FiTrash2, FiBarChart2, FiArrowLeft } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiBarChart2, FiArrowLeft, FiHome, FiFolder, FiFileText } from 'react-icons/fi';
 import api from '../../../services/api';
 import toast from 'react-hot-toast';
 
@@ -11,7 +11,9 @@ const CreatePoll = () => {
   
   const [formData, setFormData] = useState({
     question: '',
-    location: 'homepage',
+    show_on_homepage: false,
+    project_id: '',
+    is_standalone: true,
     is_active: 'true',
     has_end_date: 'false',
     end_date: ''
@@ -34,10 +36,10 @@ const CreatePoll = () => {
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
@@ -89,21 +91,19 @@ const CreatePoll = () => {
       const pollData = {
         question: formData.question,
         is_active: formData.is_active === 'true',
+        show_on_homepage: formData.show_on_homepage,
+        is_standalone: formData.is_standalone,
         options: validOptions
       };
+
+      // Add project_id if selected
+      if (formData.project_id) {
+        pollData.project_id = parseInt(formData.project_id);
+      }
 
       // Add end_date if specified
       if (formData.has_end_date === 'true' && formData.end_date) {
         pollData.end_date = new Date(formData.end_date).toISOString();
-      }
-
-      // If homepage, set placement_type to 'standalone'
-      if (formData.location === 'homepage') {
-        pollData.placement_type = 'standalone';
-      } else {
-        // If project selected, set project_id and placement_type
-        pollData.project_id = parseInt(formData.location);
-        pollData.placement_type = 'project';
       }
 
       await api.post('/polls', pollData);
@@ -131,36 +131,101 @@ const CreatePoll = () => {
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-white mb-2">Create Poll</h1>
-        <p className="text-gray-400">Create a poll for homepage or project page</p>
+        <p className="text-gray-400">Create a poll and choose where it appears</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Poll Location */}
+        {/* Poll Placement */}
         <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-6">
-          <label className="block text-white font-medium mb-2">
-            Poll Location *
-          </label>
-          <select
-            name="location"
-            value={formData.location}
-            onChange={handleInputChange}
-            className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition"
-            required
-          >
-            <option value="homepage">Homepage Sidebar</option>
-            <optgroup label="Projects">
+          <h3 className="text-white font-medium text-lg mb-4">Where should this poll appear?</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Homepage Card */}
+            <label 
+              className={`relative flex flex-col p-5 rounded-lg border-2 cursor-pointer transition-all ${
+                formData.show_on_homepage 
+                  ? 'border-purple-500 bg-purple-500/10' 
+                  : 'border-neutral-700 bg-neutral-800 hover:border-neutral-600'
+              }`}
+            >
+              <input
+                type="checkbox"
+                name="show_on_homepage"
+                checked={formData.show_on_homepage}
+                onChange={handleInputChange}
+                className="sr-only"
+              />
+              <div className="flex items-start gap-3 mb-2">
+                <FiHome className={`text-2xl flex-shrink-0 ${formData.show_on_homepage ? 'text-purple-400' : 'text-gray-400'}`} />
+                <div className="flex-1">
+                  <div className="text-white font-semibold mb-1">Homepage Sidebar</div>
+                  <div className="text-gray-400 text-sm">Visible to all visitors on the homepage</div>
+                </div>
+                {formData.show_on_homepage && (
+                  <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+            </label>
+
+            {/* Standalone Card */}
+            <label 
+              className={`relative flex flex-col p-5 rounded-lg border-2 cursor-pointer transition-all ${
+                formData.is_standalone 
+                  ? 'border-purple-500 bg-purple-500/10' 
+                  : 'border-neutral-700 bg-neutral-800 hover:border-neutral-600'
+              }`}
+            >
+              <input
+                type="checkbox"
+                name="is_standalone"
+                checked={formData.is_standalone}
+                onChange={handleInputChange}
+                className="sr-only"
+              />
+              <div className="flex items-start gap-3 mb-2">
+                <FiFileText className={`text-2xl flex-shrink-0 ${formData.is_standalone ? 'text-purple-400' : 'text-gray-400'}`} />
+                <div className="flex-1">
+                  <div className="text-white font-semibold mb-1">Standalone</div>
+                  <div className="text-gray-400 text-sm">Can be added to posts manually</div>
+                </div>
+                {formData.is_standalone && (
+                  <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
+
+          {/* Project Selection */}
+          <div className="mt-4">
+            <label className="flex items-center gap-3 text-white font-medium mb-3">
+              <FiFolder className="text-xl text-purple-400" />
+              Project Page (Optional)
+            </label>
+            <select
+              name="project_id"
+              value={formData.project_id}
+              onChange={handleInputChange}
+              className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 transition"
+            >
+              <option value="">None - Not shown on any project</option>
               {projects.map(project => (
                 <option key={project.id} value={project.id}>
                   {project.name}
                 </option>
               ))}
-            </optgroup>
-          </select>
-          <p className="text-gray-400 text-sm mt-2">
-            {formData.location === 'homepage' 
-              ? 'Poll will appear in the homepage sidebar' 
-              : 'Poll will appear on the selected project page'}
-          </p>
+            </select>
+            {formData.project_id && (
+              <p className="text-purple-400 text-sm mt-2">✓ Will appear on the selected project page</p>
+            )}
+          </div>
         </div>
 
         {/* Poll Question */}

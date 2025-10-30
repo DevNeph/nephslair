@@ -12,11 +12,18 @@
 
 name: Test Suite (External DB)
 
+# DISABLED: This is an example file, not meant to run automatically
+# To use this workflow:
+# 1. Copy this file to test-external-db.yml
+# 2. Configure GitHub Secrets as described in GITHUB_ACTIONS_SETUP.md
+# 3. Uncomment the 'on:' section below
+
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main, develop ]
+  workflow_dispatch:  # Only allow manual runs
+  # push:
+  #   branches: [ main, develop ]
+  # pull_request:
+  #   branches: [ main, develop ]
 
 jobs:
   test:

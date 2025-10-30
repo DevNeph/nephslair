@@ -82,16 +82,24 @@ jobs:
           DB_DIALECT: mysql
         run: |
           echo "Running migrations..."
-          if npx sequelize-cli db:migrate --config backend/config/config.js --migrations-path backend/migrations --env test; then
-            echo "✅ Migrations completed successfully!"
-          else
-            echo "⚠️ Migration failed, but continuing with tests..."
-            echo "Note: Some tests may fail if database tables are missing"
-          fi
+          npx sequelize-cli db:migrate --config backend/config/config.js --migrations-path backend/migrations --env test || {
+            echo "❌ Migration failed!"
+            echo "Cannot proceed with tests without database tables."
+            exit 1
+          }
+          echo "✅ Migrations completed successfully!"
 
       - name: Verify database setup
         run: |
-          mysql -h 127.0.0.1 -u root -proot nephslair_test -e "SHOW TABLES;" || echo "Database may be empty, but migrations will create tables"
+          echo "Verifying database tables..."
+          TABLES=$(mysql -h 127.0.0.1 -u root -proot nephslair_test -e "SHOW TABLES;" 2>&1)
+          if [ $? -eq 0 ]; then
+            echo "✅ Database tables exist:"
+            echo "$TABLES"
+          else
+            echo "❌ Failed to verify database tables!"
+            exit 1
+          fi
 
       - name: Run tests
         working-directory: ./backend
@@ -106,8 +114,11 @@ jobs:
           JWT_SECRET: test_jwt_secret_key_for_ci
         run: |
           echo "Starting tests..."
-          npm test || {
-            echo "Tests failed!"
+          echo "Environment: NODE_ENV=$NODE_ENV"
+          echo "Database: $DB_NAME on $DB_HOST"
+          npm test 2>&1 || {
+            echo "❌ Tests failed!"
+            echo "Checking test output..."
             exit 1
           }
 

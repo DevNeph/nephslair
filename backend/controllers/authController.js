@@ -5,7 +5,7 @@ const { Op, Sequelize } = require('sequelize');
 const { User } = require('../models');
 const { success, error } = require('../utils/response');
 const { validateFields } = require('../utils/validate');
-const { sendMail, sendWelcomeEmail } = require('../utils/email');
+const { sendMail, sendWelcomeEmail, sendPasswordResetEmail } = require('../utils/email');
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -169,30 +169,14 @@ async function forgotPassword(req, res) {
     user.reset_password_expires_at = expiresAt;
     await user.save();
 
-    // Determine frontend base URL with priority:
-    // 1. FRONTEND_BASE_URL env var (explicit setting) - highest priority
-    // 2. NODE_ENV=production ? https://nephslair.com : http://localhost:5173
-    const baseUrl = process.env.FRONTEND_BASE_URL?.trim() || 
-      (process.env.NODE_ENV === 'production' ? 'https://nephslair.com' : 'http://localhost:5173');
-    
-    // Debug log (remove in production if needed)
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[FORGOT PASSWORD] Using frontend URL:', baseUrl);
-      console.log('[FORGOT PASSWORD] FRONTEND_BASE_URL env:', process.env.FRONTEND_BASE_URL);
-      console.log('[FORGOT PASSWORD] NODE_ENV:', process.env.NODE_ENV);
-    }
-    
-    const resetUrl = `${baseUrl}/reset-password?token=${token}`;
-
+    // Send password reset email (don't fail registration if email fails)
     try {
-      await sendMail({
-        to: user.email,
-        subject: 'Reset your password',
-        html: `<p>Hello ${user.username || ''},</p><p>Click the link below to reset your password:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>This link will expire in 30 minutes.</p>`,
-        text: `Reset your password: ${resetUrl}`
-      });
-    } catch (_) {
-      // Do not fail the flow if mailing fails
+      await sendPasswordResetEmail(user, token);
+    } catch (mailError) {
+      // Log error but don't fail the flow
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[FORGOT PASSWORD] Failed to send password reset email:', mailError?.message || mailError);
+      }
     }
 
     return success(res, {}, 'If the email exists, a reset link has been sent');

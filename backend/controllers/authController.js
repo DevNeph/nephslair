@@ -85,6 +85,11 @@ const login = async (req, res) => {
     // Normalize email (lowercase, trim)
     const normalizedEmail = String(email || '').trim().toLowerCase();
     
+    // Debug log (remove in production if needed)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[LOGIN] Attempting login for:', normalizedEmail);
+    }
+    
     // Find user by email (case-insensitive search for compatibility with existing records)
     const user = await User.findOne({ 
       where: Sequelize.where(
@@ -94,13 +99,27 @@ const login = async (req, res) => {
     });
     
     if (!user) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[LOGIN] User not found for email:', normalizedEmail);
+      }
       return error(res, 'Invalid credentials', 401);
+    }
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[LOGIN] User found:', user.id, user.username, user.email);
     }
     
     // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[LOGIN] Password comparison failed for user:', user.id);
+      }
       return error(res, 'Invalid credentials', 401);
+    }
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[LOGIN] Password valid, generating token');
     }
     
     // Generate token

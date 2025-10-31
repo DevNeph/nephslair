@@ -117,19 +117,38 @@ const sendWelcomeEmail = async (user) => {
     (process.env.NODE_ENV === 'production' ? 'https://nephslair.com' : 'http://localhost:5173');
   
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #7c3aed;">Welcome to Nephslair!</h1>
-      <p>Hi <strong>${user.username}</strong>,</p>
-      <p>Thank you for registering! Your account has been successfully created.</p>
-      <p>You can now sign in and start exploring all the amazing content on Nephslair.</p>
-      <div style="margin: 30px 0;">
-        <a href="${frontendUrl}/login" 
-           style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-          Sign In Now
-        </a>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px;">
+      <div style="background-color: #ffffff; border-radius: 8px; padding: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h1 style="color: #7c3aed; font-size: 28px; margin-bottom: 20px; text-align: center;">Welcome to Nephslair! 🎉</h1>
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 16px;">Hi <strong>${user.username}</strong>,</p>
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 16px;">Thank you for registering! Your account has been successfully created.</p>
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">You can now sign in and start exploring all the amazing content on Nephslair.</p>
+        
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${frontendUrl}/login" 
+             style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
+            Sign In Now
+          </a>
+        </div>
+        
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin-top: 24px; margin-bottom: 8px;">Or visit our homepage:</p>
+        <p style="color: #3b82f6; font-size: 14px; word-break: break-all; margin-bottom: 24px;">
+          <a href="${frontendUrl}" style="color: #3b82f6; text-decoration: none;">${frontendUrl}</a>
+        </p>
+        
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 24px; margin-top: 32px;">
+          <p style="color: #9ca3af; font-size: 12px; line-height: 1.5; margin-bottom: 0;">
+            🔒 If you didn't create this account, please ignore this email.
+          </p>
+        </div>
+        
+        <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb; text-align: center;">
+          <p style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">Questions? Visit our homepage:</p>
+          <p style="margin: 0;">
+            <a href="${frontendUrl}" style="color: #7c3aed; text-decoration: none; font-size: 12px;">${frontendUrl}</a>
+          </p>
+        </div>
       </div>
-      <p style="color: #666;">Or visit our homepage: <br><a href="${frontendUrl}">${frontendUrl}</a></p>
-      <p style="color: #999; font-size: 12px;">If you didn't create this account, please ignore this email.</p>
     </div>
   `;
 
@@ -137,7 +156,7 @@ const sendWelcomeEmail = async (user) => {
     to: user.email,
     subject: 'Welcome to Nephslair! - Registration Successful',
     html,
-    text: `Welcome to Nephslair! Your account has been successfully created. Sign in at: ${frontendUrl}/login`,
+    text: `Welcome to Nephslair! Hi ${user.username},\n\nThank you for registering! Your account has been successfully created.\n\nYou can now sign in at: ${frontendUrl}/login\n\nOr visit our homepage: ${frontendUrl}\n\nIf you didn't create this account, please ignore this email.`,
   });
 };
 
@@ -145,30 +164,53 @@ const sendWelcomeEmail = async (user) => {
  * Send password reset email
  */
 const sendPasswordResetEmail = async (user, resetToken) => {
-  const resetUrl = `${process.env.FRONTEND_BASE_URL?.trim() || (process.env.NODE_ENV === 'production' ? 'https://nephslair.com' : 'http://localhost:5173')}/reset-password?token=${resetToken}`;
+  const frontendUrl = process.env.FRONTEND_BASE_URL?.trim() || 
+    (process.env.NODE_ENV === 'production' ? 'https://nephslair.com' : 'http://localhost:5173');
+  const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
   
   const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h1 style="color: #7c3aed;">Password Reset Request</h1>
-      <p>Hi <strong>${user.username}</strong>,</p>
-      <p>You requested a password reset. Click the button below to reset your password:</p>
-      <div style="margin: 30px 0;">
-        <a href="${resetUrl}" 
-           style="display: inline-block; padding: 12px 24px; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
-          Reset Password
-        </a>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; padding: 20px;">
+      <div style="background-color: #ffffff; border-radius: 8px; padding: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h1 style="color: #7c3aed; font-size: 28px; margin-bottom: 20px; text-align: center;">Password Reset Request</h1>
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 16px;">Hi <strong>${user.username}</strong>,</p>
+        <p style="color: #374151; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">You requested to reset your password. Click the button below to create a new password:</p>
+        
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${resetUrl}" 
+             style="display: inline-block; padding: 14px 32px; background-color: #7c3aed; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
+            Reset Password
+          </a>
+        </div>
+        
+        <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin-top: 24px; margin-bottom: 8px;">Or copy and paste this link into your browser:</p>
+        <p style="color: #3b82f6; font-size: 14px; word-break: break-all; margin-bottom: 24px;">
+          <a href="${resetUrl}" style="color: #3b82f6; text-decoration: none;">${resetUrl}</a>
+        </p>
+        
+        <div style="border-top: 1px solid #e5e7eb; padding-top: 24px; margin-top: 32px;">
+          <p style="color: #9ca3af; font-size: 12px; line-height: 1.5; margin-bottom: 8px;">
+            ⏰ This link will expire in <strong>30 minutes</strong> for your security.
+          </p>
+          <p style="color: #9ca3af; font-size: 12px; line-height: 1.5; margin-bottom: 0;">
+            🔒 If you didn't request this password reset, please ignore this email. Your password will remain unchanged.
+          </p>
+        </div>
+        
+        <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #e5e7eb; text-align: center;">
+          <p style="color: #6b7280; font-size: 12px; margin-bottom: 4px;">Need help? Visit our homepage:</p>
+          <p style="margin: 0;">
+            <a href="${frontendUrl}" style="color: #7c3aed; text-decoration: none; font-size: 12px;">${frontendUrl}</a>
+          </p>
+        </div>
       </div>
-      <p style="color: #666;">Or copy this link: <br><a href="${resetUrl}">${resetUrl}</a></p>
-      <p style="color: #999; font-size: 12px;">This link will expire in 1 hour.</p>
-      <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email.</p>
     </div>
   `;
 
   return sendMail({
     to: user.email,
-    subject: 'Password Reset - Nephslair',
+    subject: 'Reset Your Password - Nephslair',
     html,
-    text: `Password reset link: ${resetUrl}`,
+    text: `Hi ${user.username},\n\nYou requested to reset your password. Click the link below to create a new password:\n\n${resetUrl}\n\nThis link will expire in 30 minutes.\n\nIf you didn't request this, please ignore this email.`,
   });
 };
 

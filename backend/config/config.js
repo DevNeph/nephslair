@@ -12,7 +12,7 @@ const base = (overrides = {}) => ({
   host: process.env.DB_HOST || '127.0.0.1',
   port: Number(process.env.DB_PORT || 3306),
   dialect: process.env.DB_DIALECT || 'mysql',
-  timezone: 'Z', // use UTC to avoid timezone drift in tests/deploys
+  timezone: '+00:00', // use UTC offset for MySQL compatibility
   logging: process.env.DB_LOGGING === 'true' ? console.log : false,
   pool: { max: 5, min: 0, idle: 10000, acquire: 60000 },
   ...overrides,

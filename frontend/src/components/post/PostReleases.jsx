@@ -29,7 +29,7 @@ const PostReleases = ({ releases }) => {
     }
   };
 
-  if (!releases || releases.length === 0) return null;
+  if (!Array.isArray(releases) || releases.length === 0) return null;
 
   return (
     <div className="space-y-6">
@@ -88,7 +88,7 @@ const PostReleases = ({ releases }) => {
           )}
 
           {/* Downloads - Her Zaman Açık */}
-          {release.files && release.files.length > 0 && (
+          {Array.isArray(release?.files) && release.files.length > 0 && (
             <div className="bg-black border border-gray-700 rounded-lg p-6">
               <div className="flex items-center gap-2 mb-4">
                 <FiDownload className="text-purple-400" size={20} />

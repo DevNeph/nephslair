@@ -32,28 +32,35 @@ const ManagePosts = () => {
   const fetchPosts = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/posts/admin/all');  // ← DEĞİŞTİ
+      const response = await api.get('/posts/admin/all');
       console.log('🔍 Posts from API:', response.data.data);
-      setPosts(response.data.data);
+      // Safely set posts - ensure it's always an array
+      const postsData = response?.data?.data;
+      setPosts(Array.isArray(postsData) ? postsData : []);
     } catch (error) {
       console.error('Error fetching posts:', error);
       toast.error('Failed to load posts');
+      setPosts([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
   };
 
-    const fetchProjects = async () => {
+  const fetchProjects = async () => {
     try {
-        const response = await api.get('/projects/admin/all'); 
-        console.log('🔍 Projects from API:', response.data.data);
-        setProjects(response.data.data);
+      const response = await api.get('/projects/admin/all');
+      console.log('🔍 Projects from API:', response.data.data);
+      // Safely set projects - ensure it's always an array
+      const projectsData = response?.data?.data;
+      setProjects(Array.isArray(projectsData) ? projectsData : []);
     } catch (error) {
-        console.error('Error fetching projects:', error);
+      console.error('Error fetching projects:', error);
+      setProjects([]); // Set empty array on error
     }
-    };
+  };
 
-  const filteredPosts = posts.filter((post) => {
+  // Safely filter posts - ensure posts is an array
+  const filteredPosts = (Array.isArray(posts) ? posts : []).filter((post) => {
     if (filter === 'published' && post.status !== 'published') return false;
     if (filter === 'draft' && post.status !== 'draft') return false;
     if (selectedProject !== 'all' && post.project_id !== parseInt(selectedProject))
@@ -153,7 +160,7 @@ const ManagePosts = () => {
               className="w-full bg-neutral-800 border border-neutral-700 rounded-lg px-10 py-2 text-white focus:outline-none focus:border-purple-500 appearance-none cursor-pointer"
             >
               <option value="all">All Projects</option>
-              {projects.map((project) => (
+              {Array.isArray(projects) && projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name}
                 </option>
@@ -164,7 +171,7 @@ const ManagePosts = () => {
       </div>
 
       {/* Posts List */}
-      {filteredPosts.length === 0 ? (
+      {!Array.isArray(filteredPosts) || filteredPosts.length === 0 ? (
         <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-12 text-center">
           <FiFileText className="text-gray-600 text-6xl mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-400 mb-2">No posts found</h3>
@@ -205,10 +212,8 @@ const ManagePosts = () => {
                   </div>
                   <p className="text-purple-400 text-sm mb-2">
                         {(() => {
-                            console.log('🔍 Looking for project_id:', post.project_id, 'Type:', typeof post.project_id);
-                            console.log('🔍 Available projects:', projects.map(p => ({ id: p.id, name: p.name, type: typeof p.id })));
-                            const found = projects.find((p) => p.id == post.project_id);  // ← == yerine === (loose equality)
-                            console.log('🔍 Found project:', found);
+                            if (!Array.isArray(projects)) return 'Unknown Project';
+                            const found = projects.find((p) => p.id == post.project_id);
                             return found?.name || 'Unknown Project';
                         })()}
                   </p>

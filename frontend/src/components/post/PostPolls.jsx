@@ -8,10 +8,11 @@ import { getPollById, votePoll as votePollApi } from '../../services/pollService
 const PostPolls = ({ polls }) => {
   const { user } = useAuth();
   const [voting, setVoting] = useState(null);
-  const [pollsData, setPollsData] = useState(polls || []);
+  const [pollsData, setPollsData] = useState(Array.isArray(polls) ? polls : []);
 
   useEffect(() => {
-    setPollsData(polls || []);
+    // Safely set polls - ensure it's always an array
+    setPollsData(Array.isArray(polls) ? polls : []);
   }, [polls]);
 
   useEffect(() => {
@@ -31,7 +32,7 @@ const PostPolls = ({ polls }) => {
     return cleanup;
   }, [pollsData]);
 
-  if (!polls || polls.length === 0) {
+  if (!Array.isArray(pollsData) || pollsData.length === 0) {
     return null;
   }
 

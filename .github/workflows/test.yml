@@ -27,13 +27,13 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: nephslair_test
-        # Health check runs inside the container (uses 127.0.0.1).
-        # From the runner, we connect using the service name "mysql".
+        ports:
+          - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot"
+          --health-cmd="mysqladmin ping --silent"
           --health-interval=10s
-          --health-timeout=5s
-          --health-retries=30
+          --health-timeout=10s
+          --health-retries=50
 
     steps:
       - name: Checkout
@@ -65,66 +65,24 @@ jobs:
           JWT_EXPIRE=7d
           EOF
 
-      - name: Install MySQL client & wait for service
+      - name: Wait for MySQL to be ready
         run: |
-          set -e  # Exit on any error
-
-          # Retry-friendly apt-get (handles transient network hiccups)
-          OK=0
-          for t in 1 2 3; do
-            if sudo apt-get update; then OK=1; break; fi
-            echo "apt-get update retry $t"; sleep 2
-          done
-          if [ $OK -ne 1 ]; then
-            echo "❌ Failed to apt-get update after retries"; exit 1
-          fi
-
-          OK=0
-          for t in 1 2 3; do
-            if sudo apt-get install -y --no-install-recommends mysql-client; then OK=1; break; fi
-            echo "apt-get install retry $t"; sleep 2
-          done
-          if [ $OK -ne 1 ]; then
-            echo "❌ Failed to install mysql-client after retries"; exit 1
-          fi
-
-          echo "MySQL client installed successfully"
-          echo ""
-          echo "Waiting for MySQL service container (hostname: mysql) to be ready..."
-          echo "Note: Service container health check may take up to 30 seconds..."
-
-          MAX_ATTEMPTS=90
-          ATTEMPT=0
-          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
-            ATTEMPT=$((ATTEMPT + 1))
-            if mysqladmin ping -h mysql -u root -proot --connect-timeout=5 --silent 2>/dev/null; then
-              echo "✅ MySQL is ready! (attempt $ATTEMPT/$MAX_ATTEMPTS)"
-              # Verify with a simple query
-              if mysql -h mysql -u root -proot --connect-timeout=5 -e "SELECT 1;" >/dev/null 2>&1; then
-                echo "✅ MySQL connection verified with query"
-                exit 0
-              else
-                echo "⚠️ Ping successful but query failed, retrying..."
-                sleep 1
-                continue
-              fi
+          echo "Waiting for MySQL service to be ready..."
+          for i in {1..60}; do
+            if mysqladmin ping -h mysql -u root -proot --silent 2>/dev/null; then
+              echo "✅ MySQL is ready!"
+              exit 0
             fi
-            if [ $((ATTEMPT % 10)) -eq 0 ]; then
-              echo "Still waiting... (attempt $ATTEMPT/$MAX_ATTEMPTS)"
-            fi
-            sleep 1
+            echo "Waiting... (attempt $i/60)"
+            sleep 2
           done
-
-          # If we get here, MySQL never became ready
-          echo "❌ MySQL did not become ready after $MAX_ATTEMPTS attempts"
-          echo "Last error:"
-          mysqladmin ping -h mysql -u root -proot --connect-timeout=5 --silent 2>&1 || true
+          echo "❌ MySQL failed to become ready"
           exit 1
 
       - name: Verify MySQL connection
         run: |
-          mysql -h mysql -u root -proot --connect-timeout=5 -e "SELECT 1;" || exit 1
-          echo "MySQL connection verified!"
+          mysql -h mysql -u root -proot -e "SELECT VERSION();"
+          mysql -h mysql -u root -proot -e "SHOW DATABASES;"
 
       - name: Run migrations
         working-directory: ./backend
@@ -133,12 +91,8 @@ jobs:
           npx sequelize-cli db:migrate \
             --config config/config.js \
             --migrations-path migrations \
-            --env test || {
-              echo "❌ Migration failed!"
-              echo "Cannot proceed with tests without database tables."
-              exit 1
-            }
-          echo "✅ Migrations completed successfully!"
+            --env test
+          echo "✅ Migrations completed!"
 
       - name: Show migration status
         working-directory: ./backend
@@ -147,14 +101,7 @@ jobs:
       - name: Verify database setup
         run: |
           echo "Verifying database tables..."
-          TABLES=$(mysql -h mysql -u root -proot --connect-timeout=5 "$DB_NAME" -e "SHOW TABLES;" 2>&1)
-          if [ $? -eq 0 ]; then
-            echo "✅ Database tables exist:"
-            echo "$TABLES"
-          else
-            echo "❌ Failed to verify database tables!"
-            exit 1
-          fi
+          mysql -h mysql -u root -proot "$DB_NAME" -e "SHOW TABLES;"
 
       - name: Run tests
         working-directory: ./backend
@@ -165,43 +112,13 @@ jobs:
           echo "=========================================="
           echo "Environment: NODE_ENV=$NODE_ENV"
           echo "Database: $DB_NAME on $DB_HOST"
-          echo "Database User: $DB_USER"
           echo "=========================================="
           echo ""
-          echo "Verifying database connection before tests..."
-          mysql -h mysql -u root -proot --connect-timeout=5 "$DB_NAME" -e "SELECT 1;" || {
-            echo "❌ Cannot connect to database!"
-            exit 1
-          }
-          echo "✅ Database connection OK"
+          npm test -- --runInBand --coverage --coverageReporters=text-summary
           echo ""
-          echo "Running Jest tests..."
-          if [ -x "./node_modules/.bin/jest" ]; then
-            if ./node_modules/.bin/jest --runInBand --coverage --coverageReporters=text-summary; then
-              TEST_EXIT_CODE=0
-            else
-              TEST_EXIT_CODE=$?
-            fi
-          else
-            echo "⚠️ Jest binary not found, falling back to npm test (note: --runInBand may not apply)"
-            if npm test; then
-              TEST_EXIT_CODE=0
-            else
-              TEST_EXIT_CODE=$?
-            fi
-          fi
-          if [ $TEST_EXIT_CODE -eq 0 ]; then
-            echo ""
-            echo "=========================================="
-            echo "✅ All tests passed!"
-            echo "=========================================="
-          else
-            echo ""
-            echo "=========================================="
-            echo "❌ Tests failed with exit code $TEST_EXIT_CODE"
-            echo "=========================================="
-            exit $TEST_EXIT_CODE
-          fi
+          echo "=========================================="
+          echo "✅ All tests passed!"
+          echo "=========================================="
 
       - name: Upload coverage reports
         if: always()

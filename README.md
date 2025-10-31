@@ -98,14 +98,25 @@ node backend/server.js
 ```
 
 ### Frontend
-Create `.env` with:
+Create `.env` (for development) or `.env.production` (for production build):
 ```
-VITE_API_BASE_URL=
+VITE_API_BASE_URL=https://api.nephslair.com
 ```
+**Note:** The `/api` suffix will be added automatically if not present.
+
 Install & run:
 ```
 npm i
 npm run dev
+```
+
+**Production Build:**
+```bash
+# Create .env.production with your backend URL
+VITE_API_BASE_URL=https://api.nephslair.com
+
+# Then build
+npm run build
 ```
 
 ## Key Workflows

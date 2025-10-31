@@ -1,11 +1,11 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 const { User } = require('../models');
 const { success, error } = require('../utils/response');
 const { validateFields } = require('../utils/validate');
-const { sendMail } = require('../utils/email');
+const { sendMail, sendWelcomeEmail } = require('../utils/email');
 
 // Generate JWT Token
 const generateToken = (id) => {
@@ -25,8 +25,16 @@ const register = async (req, res) => {
     if (validationError) {
       return error(res, validationError, 400);
     }
-    // Check if user already exists
-    const userExists = await User.findOne({ where: { email } });
+    
+    // Normalize email (lowercase, trim)
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    
+    // Check if user already exists (email is already normalized to lowercase)
+    const userExists = await User.findOne({ 
+      where: { 
+        email: normalizedEmail
+      } 
+    });
     if (userExists) {
       return error(res, 'User already exists with this email', 400);
     }
@@ -35,8 +43,19 @@ const register = async (req, res) => {
     if (usernameExists) {
       return error(res, 'Username is already taken', 400);
     }
-    // Create user (password will be hashed automatically by the model hook)
-    const user = await User.create({ username, email, password, role: 'user' });
+    // Create user with normalized email (password will be hashed automatically by the model hook)
+    const user = await User.create({ username, email: normalizedEmail, password, role: 'user' });
+    
+    // Send welcome email (don't fail registration if email fails)
+    try {
+      await sendWelcomeEmail(user);
+    } catch (mailError) {
+      // Log error but don't fail registration
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[REGISTRATION] Failed to send welcome email:', mailError?.message || mailError);
+      }
+    }
+    
     // Generate token
     const token = generateToken(user.id);
     return success(res, {
@@ -62,16 +81,28 @@ const login = async (req, res) => {
     if (validationError) {
       return error(res, validationError, 400);
     }
-    // Find user by email
-    const user = await User.findOne({ where: { email } });
+    
+    // Normalize email (lowercase, trim)
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    
+    // Find user by email (case-insensitive search for compatibility with existing records)
+    const user = await User.findOne({ 
+      where: Sequelize.where(
+        Sequelize.fn('LOWER', Sequelize.col('email')),
+        normalizedEmail
+      )
+    });
+    
     if (!user) {
       return error(res, 'Invalid credentials', 401);
     }
+    
     // Check password
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return error(res, 'Invalid credentials', 401);
     }
+    
     // Generate token
     const token = generateToken(user.id);
     return success(res, {
@@ -119,7 +150,19 @@ async function forgotPassword(req, res) {
     user.reset_password_expires_at = expiresAt;
     await user.save();
 
-    const baseUrl = process.env.FRONTEND_BASE_URL || 'http://localhost:5173';
+    // Determine frontend base URL with priority:
+    // 1. FRONTEND_BASE_URL env var (explicit setting) - highest priority
+    // 2. NODE_ENV=production ? https://nephslair.com : http://localhost:5173
+    const baseUrl = process.env.FRONTEND_BASE_URL?.trim() || 
+      (process.env.NODE_ENV === 'production' ? 'https://nephslair.com' : 'http://localhost:5173');
+    
+    // Debug log (remove in production if needed)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[FORGOT PASSWORD] Using frontend URL:', baseUrl);
+      console.log('[FORGOT PASSWORD] FRONTEND_BASE_URL env:', process.env.FRONTEND_BASE_URL);
+      console.log('[FORGOT PASSWORD] NODE_ENV:', process.env.NODE_ENV);
+    }
+    
     const resetUrl = `${baseUrl}/reset-password?token=${token}`;
 
     try {

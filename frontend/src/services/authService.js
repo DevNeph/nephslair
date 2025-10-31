@@ -7,8 +7,19 @@ import { TOKEN_KEY, USER_KEY } from '../utils/constants';
 export const register = async (userData) => {
   console.log('📝 Attempting registration:', userData.email);
   const response = await api.post('/auth/register', userData);
-  console.log('✅ Registration successful:', response.data);
-  return response.data;
+
+  const { token, ...user } = response.data.data;
+  
+  console.log('✅ Registration successful:', user);
+  console.log('💾 Saving to localStorage...');
+  
+  // Save to localStorage
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  
+  console.log('✅ Saved to localStorage');
+  
+  return { token, user };
 };
 
 /**
@@ -18,8 +29,7 @@ export const login = async (credentials) => {
   console.log('🔐 Attempting login:', credentials.email);
   
   const response = await api.post('/auth/login', credentials);
-  
-  // Backend response.data.data içinde token ve user bilgisi var
+
   const { token, ...user } = response.data.data;
   
   console.log('✅ Login successful:', user);
@@ -51,7 +61,6 @@ export const getCurrentUser = () => {
   try {
     const userStr = localStorage.getItem(USER_KEY);
     
-    // GÜVENL İK KONTROLÜ
     if (!userStr || userStr === 'undefined' || userStr === 'null') {
       console.log('⚠️ No valid user in localStorage');
       return null;
@@ -62,7 +71,6 @@ export const getCurrentUser = () => {
     return user;
   } catch (error) {
     console.error('❌ Error parsing user from localStorage:', error);
-    // Geçersiz veriyi temizle
     localStorage.removeItem(USER_KEY);
     return null;
   }

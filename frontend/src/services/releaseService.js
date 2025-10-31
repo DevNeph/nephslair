@@ -58,11 +58,28 @@ export const incrementDownloadCount = async (fileId) => {
 };
 
 export const downloadFile = (fileId) => {
-  const backendUrl = import.meta.env.VITE_API_URL 
-    ? import.meta.env.VITE_API_URL.replace('/api', '') 
-    : 'http://localhost:3001';
+  // Use the same base URL logic as api.js
+  const getBackendUrl = () => {
+    // Check build-time environment variable first (from .env file)
+    if (import.meta.env.VITE_API_BASE_URL) {
+      const url = import.meta.env.VITE_API_BASE_URL.trim();
+      // Remove /api suffix if present
+      return url.endsWith('/api') ? url.slice(0, -4) : (url.endsWith('/') ? url.slice(0, -1) : url);
+    }
+    
+    // Check runtime config (for production runtime overrides)
+    if (typeof window !== 'undefined' && window.__APP_CONFIG__?.API_BASE_URL) {
+      return window.__APP_CONFIG__.API_BASE_URL.replace('/api', '');
+    }
+    
+    if (import.meta.env.MODE === 'production') {
+      return window.location.origin;
+    }
+    
+    return 'http://localhost:3001';
+  };
   
-  window.location.href = `${backendUrl}/api/releases/download/${fileId}`;
+  window.location.href = `${getBackendUrl()}/api/releases/download/${fileId}`;
 };
 
 /**

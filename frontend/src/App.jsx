@@ -33,6 +33,7 @@ import PollDetails from './pages/Admin/Polls/PollDetails';
 import WebsiteSettings from './pages/Admin/Settings/WebsiteSettings';
 import ForgotPasswordPage from './pages/Auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/Auth/ResetPasswordPage';
+import NotFound from './pages/NotFound';
 import Maintenance from './components/common/Maintenance';
 
 function MaintenanceGate({ children }) {
@@ -47,8 +48,9 @@ function MaintenanceGate({ children }) {
   const path = location.pathname.toLowerCase();
   const isLoginPath = path.startsWith('/login');
   const isAdminPath = path.startsWith('/admin');
+  const isAuthPath = path.startsWith('/forgot-password') || path.startsWith('/reset-password') || path.startsWith('/register');
 
-  if (maint && !isAdmin && !isLoginPath && !isAdminPath) {
+  if (maint && !isAdmin && !isLoginPath && !isAdminPath && !isAuthPath) {
     return <Maintenance />;
   }
   return children;
@@ -246,6 +248,9 @@ function App() {
                     </AdminRoute>
                   }
                 />
+
+                {/* 404 - Catch all unmatched routes */}
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
             <Footer />

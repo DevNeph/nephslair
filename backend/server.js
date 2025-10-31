@@ -19,6 +19,14 @@ async function start() {
     await syncDatabase();
   }
 
+  // Test SMTP connection on startup
+  try {
+    const { getTransporter } = require('./utils/email');
+    getTransporter(); // This will log SMTP connection status
+  } catch (err) {
+    console.warn('⚠️  Email service initialization skipped:', err.message);
+  }
+
   const server = app.listen(PORT, () => {
     console.log(`🚀 Server is running on port ${PORT}`);
     console.log(`📍 http://localhost:${PORT}`);

@@ -3,7 +3,7 @@ export async function request(fn, setError, setLoading) {
     setLoading?.(true);
     return await fn();
   } catch (e) {
-    setError?.(e.response?.data?.message || 'Bir hata oluştu');
+    setError?.(e.response?.data?.message || 'Error');
     throw e;
   } finally {
     setLoading?.(false);

@@ -42,9 +42,13 @@ const RegisterPage = () => {
 
   const onSubmit = form.handleSubmit(async (values) => {
     setError(null);
-    await request(() => registerUser(values), setError, undefined);
-    if (!setError) {
+    try {
+      await request(() => registerUser(values), setError, undefined);
+      // Registration successful - redirect to login
       navigate('/login');
+    } catch (err) {
+      // Error already handled by request wrapper (setError is called)
+      // Don't navigate on error
     }
   });
 

@@ -8,7 +8,17 @@ export const register = async (userData) => {
   console.log('📝 Attempting registration:', userData.email);
   const response = await api.post('/auth/register', userData);
 
+  // Safely access response data
+  if (!response?.data?.data) {
+    throw new Error('Invalid registration response');
+  }
+
   const { token, ...user } = response.data.data;
+  
+  // Validate required fields
+  if (!token || !user?.id) {
+    throw new Error('Invalid registration data');
+  }
   
   console.log('✅ Registration successful:', user);
   console.log('💾 Saving to localStorage...');
@@ -30,7 +40,17 @@ export const login = async (credentials) => {
   
   const response = await api.post('/auth/login', credentials);
 
+  // Safely access response data
+  if (!response?.data?.data) {
+    throw new Error('Invalid login response');
+  }
+
   const { token, ...user } = response.data.data;
+  
+  // Validate required fields
+  if (!token || !user?.id) {
+    throw new Error('Invalid login data');
+  }
   
   console.log('✅ Login successful:', user);
   console.log('💾 Saving to localStorage...');

@@ -5,7 +5,8 @@ import api from './api';
  */
 export const getAllPosts = async () => {
   const response = await api.get('/posts');
-  return response.data.data;
+  // Safely return data - ensure it's always an array
+  return Array.isArray(response?.data?.data) ? response.data.data : [];
 };
 
 /**
@@ -13,7 +14,8 @@ export const getAllPosts = async () => {
  */
 export const getPostsByProject = async (projectSlug) => {
   const response = await api.get(`/posts/project/${projectSlug}`);
-  return response.data.data;
+  // Safely return data - ensure it's always an array
+  return Array.isArray(response?.data?.data) ? response.data.data : [];
 };
 
 /**

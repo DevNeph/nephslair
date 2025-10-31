@@ -75,10 +75,12 @@ const HomePage = () => {
       setLoading(true);
       setError(null);
       const postsData = await getAllPosts();
-      setPosts(postsData);
+      // Safely set posts - ensure it's always an array
+      setPosts(Array.isArray(postsData) ? postsData : []);
       fetchPolls();
     } catch (err) {
       setError(err.response?.data?.message || 'Error loading posts');
+      setPosts([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -87,9 +89,12 @@ const HomePage = () => {
   const fetchPolls = async () => {
     try {
       const response = await request(() => api.get('/polls/standalone'));
-      setPolls(response?.data?.data || []);
+      // Safely set polls - ensure it's always an array
+      const pollsData = response?.data?.data;
+      setPolls(Array.isArray(pollsData) ? pollsData : []);
     } catch (error) {
       console.error('Error fetching polls:', error);
+      setPolls([]); // Set empty array on error
     }
   };
 

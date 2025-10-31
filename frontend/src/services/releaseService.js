@@ -3,7 +3,8 @@ import api from './api';
 // Public endpoints
 export const getReleasesByProject = async (projectSlug) => {
   const response = await api.get(`/releases/project/${projectSlug}`);
-  return response.data.data;
+  // Safely return data - ensure it's always an array
+  return Array.isArray(response?.data?.data) ? response.data.data : [];
 };
 
 // Admin endpoints
@@ -58,28 +59,51 @@ export const incrementDownloadCount = async (fileId) => {
 };
 
 export const downloadFile = (fileId) => {
-  // Use the same base URL logic as api.js
+  // Use the same base URL logic as api.js, but remove /api suffix for direct file download
   const getBackendUrl = () => {
     // Check build-time environment variable first (from .env file)
     if (import.meta.env.VITE_API_BASE_URL) {
-      const url = import.meta.env.VITE_API_BASE_URL.trim();
+      let url = String(import.meta.env.VITE_API_BASE_URL).trim();
       // Remove /api suffix if present
-      return url.endsWith('/api') ? url.slice(0, -4) : (url.endsWith('/') ? url.slice(0, -1) : url);
+      if (url.endsWith('/api')) {
+        url = url.slice(0, -4);
+      } else if (url.endsWith('/')) {
+        url = url.slice(0, -1);
+      }
+      // Ensure it's an absolute URL
+      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        return url;
+      }
     }
     
     // Check runtime config (for production runtime overrides)
     if (typeof window !== 'undefined' && window.__APP_CONFIG__?.API_BASE_URL) {
-      return window.__APP_CONFIG__.API_BASE_URL.replace('/api', '');
+      let url = String(window.__APP_CONFIG__.API_BASE_URL).trim();
+      // Remove /api suffix if present
+      if (url.endsWith('/api')) {
+        url = url.slice(0, -4);
+      } else if (url.endsWith('/')) {
+        url = url.slice(0, -1);
+      }
+      // Ensure it's an absolute URL
+      if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        return url;
+      }
     }
     
-    if (import.meta.env.MODE === 'production') {
+    // In production, use same origin (if backend is on same domain)
+    if (import.meta.env.MODE === 'production' && typeof window !== 'undefined') {
       return window.location.origin;
     }
     
+    // Development fallback
     return 'http://localhost:3001';
   };
   
-  window.location.href = `${getBackendUrl()}/api/releases/download/${fileId}`;
+  const backendUrl = getBackendUrl();
+  // Ensure no double slashes and proper URL construction
+  const downloadUrl = `${backendUrl.replace(/\/+$/, '')}/api/releases/download/${fileId}`;
+  window.location.href = downloadUrl;
 };
 
 /**

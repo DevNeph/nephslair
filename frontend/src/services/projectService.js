@@ -5,7 +5,8 @@ import api from './api';
  */
 export const getProjects = async () => {
   const response = await api.get('/projects');
-  return response.data.data;
+  // Safely return data - ensure it's always an array
+  return Array.isArray(response?.data?.data) ? response.data.data : [];
 };
 
 /**

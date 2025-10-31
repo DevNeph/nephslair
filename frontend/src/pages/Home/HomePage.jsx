@@ -101,11 +101,15 @@ const HomePage = () => {
   if (loading) return <Loading />;
   if (error) return <ErrorMessage message={error} />;
 
-  if (polls.length === 0) {
+  // Safely check arrays before rendering
+  const hasPolls = Array.isArray(polls) && polls.length > 0;
+  const hasPosts = Array.isArray(posts) && posts.length > 0;
+
+  if (!hasPolls) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-12">
         <AnnouncementBar />
-        {posts.length === 0 ? (
+        {!hasPosts ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No posts yet</p>
           </div>
@@ -127,20 +131,20 @@ const HomePage = () => {
         <aside className="w-80 flex-shrink-0">
           <div className="sticky top-24 space-y-6">
             <h2 className="text-xl font-semibold text-white mb-4">Community Polls</h2>
-            {polls.map((poll) => (
+            {Array.isArray(polls) && polls.map((poll) => (
               <PollWidget key={poll.id} pollId={poll.id} />
             ))}
           </div>
         </aside>
 
         <main className="flex-1 min-w-0">
-          {posts.length === 0 ? (
+          {!hasPosts ? (
             <div className="text-center py-12">
               <p className="text-gray-500 text-lg">No posts yet</p>
             </div>
           ) : (
             <div className="space-y-8">
-              {posts.map((post) => (
+              {Array.isArray(posts) && posts.map((post) => (
                 <PostCard key={post.id} post={post} />
               ))}
             </div>

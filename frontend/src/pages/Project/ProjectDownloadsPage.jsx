@@ -29,9 +29,11 @@ const ProjectDownloadsPage = () => {
         getReleasesByProject(slug)
       ]);
       setProject(projectData);
-      setReleases(releasesData);
+      // Safely set releases - ensure it's always an array
+      setReleases(Array.isArray(releasesData) ? releasesData : []);
     } catch (err) {
       setError(err.response?.data?.message || 'Error loading data');
+      setReleases([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -49,10 +51,13 @@ const handleDownload = async (file) => {
 
   const getPlatforms = () => {
     const platforms = new Set();
+    if (!Array.isArray(releases)) return [];
     releases.forEach(release => {
-      if (release.files) {
+      if (release.files && Array.isArray(release.files)) {
         release.files.forEach(file => {
-          platforms.add(file.platform.toLowerCase());
+          if (file?.platform) {
+            platforms.add(file.platform.toLowerCase());
+          }
         });
       }
     });
@@ -60,9 +65,9 @@ const handleDownload = async (file) => {
   };
 
   const filterFiles = (files) => {
-    if (!files) return [];
+    if (!Array.isArray(files)) return [];
     if (filter === 'all') return files;
-    return files.filter(file => file.platform.toLowerCase() === filter);
+    return files.filter(file => file?.platform?.toLowerCase() === filter);
   };
 
   if (loading) return <Loading />;
@@ -77,7 +82,7 @@ const handleDownload = async (file) => {
   ];
 
   const platforms = getPlatforms();
-  const hasDownloads = releases.some(r => r.files && r.files.length > 0);
+  const hasDownloads = Array.isArray(releases) && releases.some(r => Array.isArray(r?.files) && r.files.length > 0);
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -167,9 +172,9 @@ const handleDownload = async (file) => {
               </div>
             ) : (
               <div className="space-y-8">
-                {releases.map((release) => {
-                  const filteredFiles = filterFiles(release.files);
-                  if (filteredFiles.length === 0) return null;
+                {Array.isArray(releases) && releases.map((release) => {
+                  const filteredFiles = filterFiles(release?.files);
+                  if (!Array.isArray(filteredFiles) || filteredFiles.length === 0) return null;
 
                   return (
                     <div key={release.id} id={`v${release.version}`}>
@@ -193,7 +198,7 @@ const handleDownload = async (file) => {
 
                       {/* Files List - Full Width */}
                       <div className="space-y-2">
-                        {filteredFiles.map((file) => (
+                        {Array.isArray(filteredFiles) && filteredFiles.map((file) => (
                           <div
                             key={file.id}
                             className="flex items-center justify-between bg-white/5 border border-gray-800 rounded-lg p-4 hover:border-gray-700 transition"

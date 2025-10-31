@@ -36,9 +36,11 @@ const Navbar = () => {
   const fetchProjects = async () => {
     try {
       const data = await getProjects();
-      setProjects(data);
+      // Safely set projects - ensure it's always an array
+      setProjects(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching projects:', error);
+      setProjects([]); // Set empty array on error
     }
   };
 
@@ -148,12 +150,12 @@ const Navbar = () => {
                 </Link>
 
                 {/* Divider */}
-                {projects.length > 0 && (
+                {Array.isArray(projects) && projects.length > 0 && (
                   <hr className="border-gray-800" />
                 )}
 
                 {/* Projects List */}
-                {projects.length === 0 ? (
+                {!Array.isArray(projects) || projects.length === 0 ? (
                   <div className="py-4">
                     <p className="text-gray-500 text-lg">No projects yet</p>
                   </div>

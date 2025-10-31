@@ -42,9 +42,11 @@ const ProjectChangelogsPage = () => {
         getReleasesByProject(slug)
       ]);
       setProject(projectData);
-      setReleases(releasesData);
+      // Safely set releases - ensure it's always an array
+      setReleases(Array.isArray(releasesData) ? releasesData : []);
     } catch (err) {
       setError(err.response?.data?.message || 'Error loading data');
+      setReleases([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -117,7 +119,7 @@ const ProjectChangelogsPage = () => {
 
         {/* Main Content - Changelogs */}
         <main className="flex-1 min-w-0">
-          {releases.length === 0 ? (
+          {!Array.isArray(releases) || releases.length === 0 ? (
             <div className="bg-black border border-gray-700 rounded-lg p-8">
               <p className="text-gray-500 text-center">No releases yet</p>
             </div>
@@ -144,7 +146,7 @@ const ProjectChangelogsPage = () => {
                       </span>
                     </div>
                     <div className="flex items-center gap-4">
-                      {release.files && release.files.length > 0 && (
+                      {Array.isArray(release?.files) && release.files.length > 0 && (
                         <Link
                           to={`/project/${slug}/downloads#v${release.version}`}
                           onClick={(e) => e.stopPropagation()}
@@ -203,7 +205,7 @@ const ProjectChangelogsPage = () => {
             <div className="relative">
               <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-700" />
               <div className="space-y-8">
-                {releases.map((release) => (
+                {Array.isArray(releases) && releases.map((release) => (
                   <div key={release.id} className="relative pl-6">
                     <div className="absolute left-0 w-4 h-4 bg-white rounded-full border-4 border-black" />
                     <div>

@@ -34,7 +34,8 @@ const ProjectPage = () => {
       ]);
       
       setProject(projectData);
-      setPosts(postsData);
+      // Safely set posts - ensure it's always an array
+      setPosts(Array.isArray(postsData) ? postsData : []);
 
       // Fetch polls for this project
       if (projectData?.id) {
@@ -42,6 +43,8 @@ const ProjectPage = () => {
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Error loading project');
+      setPosts([]); // Set empty array on error
+      setPolls([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -50,9 +53,12 @@ const ProjectPage = () => {
   const fetchPolls = async (projectId) => {
     try {
       const response = await request(() => api.get(`/polls/project/${projectId}`));
-      setPolls(response?.data?.data || []);
+      // Safely set polls - ensure it's always an array
+      const pollsData = response?.data?.data;
+      setPolls(Array.isArray(pollsData) ? pollsData : []);
     } catch (error) {
       console.error('Error fetching polls:', error);
+      setPolls([]); // Set empty array on error
       // Don't show error to user, just log it
     }
   };
@@ -112,7 +118,7 @@ const ProjectPage = () => {
             </nav>
 
             {/* Polls Section */}
-            {polls.length > 0 && (
+            {Array.isArray(polls) && polls.length > 0 && (
               <div className="space-y-4">
                 {polls.map((poll) => (
                   <PollWidget key={poll.id} pollId={poll.id} />
@@ -124,7 +130,7 @@ const ProjectPage = () => {
 
         {/* Main Content */}
         <main className="flex-1 min-w-0">
-          {posts.length === 0 ? (
+          {!Array.isArray(posts) || posts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500 text-lg">No posts yet in this project</p>
             </div>

@@ -27,13 +27,11 @@ jobs:
         env:
           MYSQL_ROOT_PASSWORD: root
           MYSQL_DATABASE: nephslair_test
-        ports:
-          - 3306:3306
         options: >-
           --health-cmd="mysqladmin ping --silent"
-          --health-interval=10s
+          --health-interval=5s
           --health-timeout=10s
-          --health-retries=50
+          --health-retries=120
 
     steps:
       - name: Checkout
@@ -65,22 +63,34 @@ jobs:
           JWT_EXPIRE=7d
           EOF
 
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends default-mysql-client
+
       - name: Wait for MySQL to be ready
         run: |
           echo "Waiting for MySQL service to be ready..."
-          for i in {1..60}; do
+          for i in {1..90}; do
             if mysqladmin ping -h mysql -u root -proot --silent 2>/dev/null; then
               echo "✅ MySQL is ready!"
               exit 0
             fi
-            echo "Waiting... (attempt $i/60)"
-            sleep 2
+            echo "Waiting... (attempt $i/90)"
+            sleep 3
           done
-          echo "❌ MySQL failed to become ready"
+          echo "❌ MySQL failed to become ready after 270 seconds"
+          echo "---- Debug: mysqladmin ping/status ----"
+          mysqladmin ping -h mysql -u root -proot || true
+          mysqladmin status -h mysql -u root -proot || true
+          echo "---- Debug: try connecting and listing databases ----"
+          mysql -h mysql -u root -proot -e "SHOW VARIABLES LIKE 'version%';" || true
+          mysql -h mysql -u root -proot -e "SHOW DATABASES;" || true
           exit 1
 
       - name: Verify MySQL connection
         run: |
+          echo "Testing MySQL connection..."
           mysql -h mysql -u root -proot -e "SELECT VERSION();"
           mysql -h mysql -u root -proot -e "SHOW DATABASES;"
 
